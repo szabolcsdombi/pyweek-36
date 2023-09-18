@@ -1,8 +1,9 @@
+import math
 import pickle
+import random
 import struct
 
 import glm
-import numpy as np
 import pyglet
 import zengl
 
@@ -209,6 +210,18 @@ def quat_look_at(forward, upward):
     return glm.quat_cast(basis)
 
 
+def random_rotation():
+    u1 = random.random()
+    u2 = random.random()
+    u3 = random.random()
+    return glm.quat(
+        math.sqrt(1.0 - u1) * math.sin(2.0 * math.pi * u2),
+        math.sqrt(1.0 - u1) * math.cos(2.0 * math.pi * u2),
+        math.sqrt(u1) * math.sin(2.0 * math.pi * u3),
+        math.sqrt(u1) * math.cos(2.0 * math.pi * u3),
+    )
+
+
 class SpaceShip:
     def __init__(self):
         self.position = glm.vec3(0.0, 0.0, 0.0)
@@ -234,6 +247,16 @@ class SpaceShip:
         return zengl.camera(eye, target, up, aspect=window.aspect, fov=45.0)
 
 
+class Canister:
+    def __init__(self):
+        self.position = glm.vec3(random.random(), random.random(), random.random()) * 200.0 - 100.0
+        self.rotation = random_rotation()
+        self.axis = random_rotation() * glm.vec3(1.0, 0.0, 0.0)
+
+    def update(self):
+        self.rotation = glm.angleAxis(0.05, self.axis) * self.rotation
+
+
 def render_object(name, position, rotation):
     pipeline = pipelines[name]
     pipeline.uniforms['position'][:] = struct.pack('3f', *position)
@@ -242,7 +265,7 @@ def render_object(name, position, rotation):
 
 
 space_ship = SpaceShip()
-canisters = np.random.uniform(-50.0, 50.0, (150, 3))
+canisters = [Canister() for _ in range(150)]
 
 
 def render():
@@ -256,8 +279,9 @@ def render():
     space_ship.update(yaw, pitch, roll)
     uniform_buffer.write(space_ship.camera())
     render_object('SpaceShip', space_ship.position, space_ship.rotation)
-    for c in canisters:
-        render_object('Canister', glm.vec3(c), glm.quat(1.0, 0.0, 0.0, 0.0))
+    for canister in canisters:
+        canister.update()
+        render_object('Canister', canister.position, canister.rotation)
     image.blit()
     ctx.end_frame()
 
