@@ -229,6 +229,24 @@ def random_rotation():
     )
 
 
+class Smoke:
+    def __init__(self, position, velocity):
+        self.position = position
+        self.velocity = velocity
+        self.rotation = random_rotation()
+        self.counter = 300
+        self.alive = True
+
+    def update(self):
+        self.position += self.velocity
+        self.velocity *= 0.9
+        self.counter -= 1
+        self.alive = self.counter > 0
+
+    def render(self):
+        render_object('Smoke', self.position, self.rotation)
+
+
 class SpaceShip:
     def __init__(self):
         self.position = glm.vec3(0.0, 0.0, 0.0)
@@ -251,11 +269,14 @@ class SpaceShip:
             if type(obj) is Canister:
                 obj.alive = False
 
+        world.add(Smoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
+        world.add(Smoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
+
     def render(self):
         render_object('SpaceShip0', self.position, self.rotation)
 
     def camera(self):
-        eye = self.position - self.forward * 4.0 + self.upward * 2.0
+        eye = self.position - self.forward * 6.0 + self.upward * 2.0
         target = self.position + self.forward * 2.0
         up = self.upward
         return zengl.camera(eye, target, up, aspect=window.aspect, fov=45.0)
