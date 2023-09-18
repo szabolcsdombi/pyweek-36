@@ -237,6 +237,7 @@ class SpaceShip:
         self.user_input = glm.vec3(0.0, 0.0, 0.0)
         self.yaw_pitch_roll = glm.vec3(0.0, 0.0, 0.0)
         self.rotation = glm.quat(1.0, 0.0, 0.0, 0.0)
+        self.alive = True
 
     def update(self):
         yaw, pitch, roll = self.yaw_pitch_roll
@@ -245,6 +246,10 @@ class SpaceShip:
         self.yaw_pitch_roll = (self.yaw_pitch_roll + self.user_input * 0.01) * 0.9
         self.position += self.forward * 0.3
         self.rotation = quat_look_at(temp_forward, temp_upward)
+
+        for obj in world.nearby(self.position, 2.0):
+            if type(obj) is Canister:
+                obj.alive = False
 
     def render(self):
         render_object('SpaceShip0', self.position, self.rotation)
@@ -261,6 +266,7 @@ class Canister:
         self.position = glm.vec3(random.random(), random.random(), random.random()) * 200.0 - 100.0
         self.rotation = random_rotation()
         self.axis = random_rotation() * glm.vec3(1.0, 0.0, 0.0)
+        self.alive = True
 
     def update(self):
         self.rotation = glm.angleAxis(0.05, self.axis) * self.rotation
@@ -280,13 +286,34 @@ class SpaceShipControl:
         self.space_ship.user_input = glm.vec3(yaw, pitch, roll)
 
 
+class World:
+    def __init__(self):
+        self.game_objects = []
+
+    def nearby(self, position, radius):
+        return [obj for obj in self.game_objects if glm.distance(obj.position, position) <= radius]
+
+    def add(self, obj):
+        self.game_objects.append(obj)
+
+    def update(self):
+        for obj in self.game_objects:
+            obj.update()
+        self.game_objects = [obj for obj in self.game_objects if obj.alive]
+
+    def render(self):
+        for obj in self.game_objects:
+            obj.render()
+
+
+world = World()
 space_ship = SpaceShip()
 controller = SpaceShipControl(space_ship)
 
-game_objects = []
-game_objects.append(space_ship)
+
+world.add(space_ship)
 for _ in range(150):
-    game_objects.append(Canister())
+    world.add(Canister())
 
 
 def render():
@@ -297,13 +324,9 @@ def render():
 
     controller.update()
 
-    for obj in game_objects:
-        obj.update()
-
+    world.update()
     uniform_buffer.write(space_ship.camera())
-
-    for obj in game_objects:
-        obj.render()
+    world.render()
 
     image.blit()
     ctx.end_frame()
