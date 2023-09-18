@@ -253,6 +253,7 @@ class Smoke:
 
 class CollectedCanister:
     def __init__(self, collector, canister):
+        self.position = canister.position
         self.collector = collector
         self.canister = canister
         self.counter = 10
@@ -303,6 +304,29 @@ class SpaceShip:
         target = self.position + self.forward * 2.0
         up = self.upward
         return zengl.camera(eye, target, up, aspect=window.aspect, fov=45.0)
+
+
+class WanderingShip:
+    def __init__(self):
+        self.space_ship = SpaceShip()
+        position = random_rotation() * glm.vec3(100.0, 0.0, 0.0)
+        forward = glm.normalize(random_rotation() * glm.vec3(20.0, 0.0, 0.0) - position)
+        upward = random_rotation() * glm.vec3(1.0, 0.0, 0.0)
+        sideways = glm.normalize(glm.cross(forward, upward))
+        upward = glm.normalize(glm.cross(sideways, forward))
+        self.space_ship.position = position
+        self.space_ship.forward = forward
+        self.position = self.space_ship.position
+        self.alive = True
+
+    def update(self):
+        user_input = glm.vec3(random.random(), random.random(), random.random()) * 2.0 - 1.0
+        self.space_ship.user_input = glm.clamp(self.space_ship.user_input + user_input, glm.vec3(0.0), glm.vec3(1.0))
+        self.space_ship.update()
+        self.position = self.space_ship.position
+
+    def render(self):
+        render_object('SpaceShip1', self.space_ship.position, self.space_ship.rotation, 1.0)
 
 
 class Canister:
@@ -356,6 +380,8 @@ controller = SpaceShipControl(space_ship)
 
 
 world.add(space_ship)
+for _ in range(5):
+    world.add(WanderingShip())
 for _ in range(150):
     world.add(Canister())
 
