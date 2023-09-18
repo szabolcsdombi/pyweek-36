@@ -193,6 +193,13 @@ pipelines = {
 }
 
 
+def render_object(name, position, rotation):
+    pipeline = pipelines[name]
+    pipeline.uniforms['position'][:] = struct.pack('3f', *position)
+    pipeline.uniforms['rotation'][:] = struct.pack('4f', *glm.quat_to_vec4(rotation))
+    pipeline.render()
+
+
 def rotate(forward, upward, yaw, pitch, roll):
     upward = glm.angleAxis(roll, forward) * upward
     forward = glm.angleAxis(-yaw, upward) * forward
@@ -227,18 +234,20 @@ class SpaceShip:
         self.position = glm.vec3(0.0, 0.0, 0.0)
         self.forward = glm.vec3(0.0, -1.0, 0.0)
         self.upward = glm.vec3(0.0, 0.0, 1.0)
-        self.yaw = 0.0
-        self.pitch = 0.0
-        self.roll = 0.0
+        self.user_input = glm.vec3(0.0, 0.0, 0.0)
+        self.yaw_pitch_roll = glm.vec3(0.0, 0.0, 0.0)
+        self.rotation = glm.quat(1.0, 0.0, 0.0, 0.0)
 
-    def update(self, yaw, pitch, roll):
-        self.forward, self.upward = rotate(self.forward, self.upward, self.yaw * 0.5, self.pitch * 0.5, self.roll * 0.5)
-        self.yaw = (self.yaw + yaw) * 0.9
-        self.pitch = (self.pitch + pitch) * 0.9
-        self.roll = (self.roll + roll) * 0.9
+    def update(self):
+        yaw, pitch, roll = self.yaw_pitch_roll
+        self.forward, self.upward = rotate(self.forward, self.upward, yaw * 0.5, pitch * 0.5, roll * 0.5)
+        temp_forward, temp_upward = rotate(self.forward, self.upward, yaw * 2.0, pitch * 2.0, roll * 2.0)
+        self.yaw_pitch_roll = (self.yaw_pitch_roll + self.user_input * 0.01) * 0.9
         self.position += self.forward * 0.3
-        temp_forward, temp_upward = rotate(self.forward, self.upward, self.yaw * 2.0, self.pitch * 2.0, self.roll * 2.0)
         self.rotation = quat_look_at(temp_forward, temp_upward)
+
+    def render(self):
+        render_object('SpaceShip0', self.position, self.rotation)
 
     def camera(self):
         eye = self.position - self.forward * 4.0 + self.upward * 2.0
@@ -256,16 +265,28 @@ class Canister:
     def update(self):
         self.rotation = glm.angleAxis(0.05, self.axis) * self.rotation
 
+    def render(self):
+        render_object('Canister', self.position, self.rotation)
 
-def render_object(name, position, rotation):
-    pipeline = pipelines[name]
-    pipeline.uniforms['position'][:] = struct.pack('3f', *position)
-    pipeline.uniforms['rotation'][:] = struct.pack('4f', *glm.quat_to_vec4(rotation))
-    pipeline.render()
+
+class SpaceShipControl:
+    def __init__(self, space_ship):
+        self.space_ship = space_ship
+
+    def update(self):
+        yaw = -1.0 if window.key_down('KeyA') else 1.0 if window.key_down('KeyD') else 0.0
+        pitch = -1.0 if window.key_down('KeyW') else 1.0 if window.key_down('KeyS') else 0.0
+        roll = -1.0 if window.key_down('KeyQ') else 1.0 if window.key_down('KeyE') else 0.0
+        self.space_ship.user_input = glm.vec3(yaw, pitch, roll)
 
 
 space_ship = SpaceShip()
-canisters = [Canister() for _ in range(150)]
+controller = SpaceShipControl(space_ship)
+
+game_objects = []
+game_objects.append(space_ship)
+for _ in range(150):
+    game_objects.append(Canister())
 
 
 def render():
@@ -273,15 +294,17 @@ def render():
     ctx.new_frame()
     image.clear()
     depth.clear()
-    yaw = -0.01 if window.key_down('KeyA') else 0.01 if window.key_down('KeyD') else 0.0
-    pitch = -0.01 if window.key_down('KeyW') else 0.01 if window.key_down('KeyS') else 0.0
-    roll = -0.01 if window.key_down('KeyQ') else 0.01 if window.key_down('KeyE') else 0.0
-    space_ship.update(yaw, pitch, roll)
+
+    controller.update()
+
+    for obj in game_objects:
+        obj.update()
+
     uniform_buffer.write(space_ship.camera())
-    render_object('SpaceShip', space_ship.position, space_ship.rotation)
-    for canister in canisters:
-        canister.update()
-        render_object('Canister', canister.position, canister.rotation)
+
+    for obj in game_objects:
+        obj.render()
+
     image.blit()
     ctx.end_frame()
 
