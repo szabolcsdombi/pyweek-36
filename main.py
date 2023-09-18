@@ -1,11 +1,16 @@
 import pickle
 import struct
 
+import glm
 import pyglet
 import zengl
 
 pyglet.options['shadow_window'] = False
 pyglet.options['debug_gl'] = False
+
+
+def fixquat(q):
+    return q[1], q[2], q[3], q[0]
 
 
 KEYS = {
@@ -190,6 +195,24 @@ pipelines = {
 }
 
 
+class SpaceShip:
+    def __init__(self):
+        self.position = glm.vec3(0.0, 0.0, 0.0)
+        self.forward = glm.vec3(0.0, -1.0, 0.0)
+        self.upward = glm.vec3(0.0, 0.0, 1.0)
+
+    def update(self):
+        self.position += self.forward * 0.01
+        basis = glm.lookAt(self.position, self.position + self.forward, self. upward)
+        self.rotation = fixquat(glm.quat_cast(basis) * glm.quat(0.7071, -0.7071, 0.0, 0.0) * glm.quat(0.0, 0.0, 0.0, 1.0))
+
+    def camera(self):
+        eye = self.position - self.forward * 4.0 + self.upward * 2.0
+        target = self.position + self.forward * 2.0
+        up = self.upward
+        return zengl.camera(eye, target, up, aspect=window.aspect, fov=45.0)
+
+
 def render_object(name, position, rotation):
     pipeline = pipelines[name]
     pipeline.uniforms['position'][:] = struct.pack('3f', *position)
@@ -197,14 +220,17 @@ def render_object(name, position, rotation):
     pipeline.render()
 
 
+space_ship = SpaceShip()
+
+
 def render():
     window.update()
     ctx.new_frame()
     image.clear()
     depth.clear()
-    camera = zengl.camera((3.0, 2.0, 2.0), (0.0, 0.0, 0.0), aspect=window.aspect, fov=45.0)
-    uniform_buffer.write(camera)
-    render_object('SpaceShip', (0.0, 1.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+    space_ship.update()
+    uniform_buffer.write(space_ship.camera())
+    render_object('SpaceShip', space_ship.position, space_ship.rotation)
     render_object('Canister', (0.0, -2.0, 0.0), (0.0, 0.0, 0.0, 1.0))
     image.blit()
     ctx.end_frame()
