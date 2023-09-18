@@ -2,6 +2,7 @@ import pickle
 import struct
 
 import glm
+import numpy as np
 import pyglet
 import zengl
 
@@ -191,16 +192,33 @@ pipelines = {
 }
 
 
+def rotate(forward, upward, yaw, pitch, roll):
+    upward = glm.angleAxis(roll, forward) * upward
+    forward = glm.angleAxis(-yaw, upward) * forward
+    sideways = glm.normalize(glm.cross(forward, upward))
+    forward = glm.angleAxis(pitch, sideways) * forward
+    upward = glm.normalize(glm.cross(sideways, forward))
+    return forward, upward
+
+
+def quat_look_at(forward, upward):
+    forward = glm.normalize(forward)
+    sideways = glm.normalize(glm.cross(forward, upward))
+    upward = glm.normalize(glm.cross(sideways, forward))
+    basis = glm.mat3(-sideways, -forward, upward)
+    return glm.quat_cast(basis)
+
+
 class SpaceShip:
     def __init__(self):
         self.position = glm.vec3(0.0, 0.0, 0.0)
         self.forward = glm.vec3(0.0, -1.0, 0.0)
         self.upward = glm.vec3(0.0, 0.0, 1.0)
 
-    def update(self):
-        self.position += self.forward * 0.01
-        basis = glm.lookAt(self.position, self.position + self.forward, self. upward)
-        self.rotation = glm.quat_cast(basis) * glm.quat(0.0, 0.0, 0.7071, 0.7071)
+    def update(self, yaw, pitch, roll):
+        self.forward, self.upward = rotate(self.forward, self.upward, yaw, pitch, roll)
+        self.position += self.forward * 0.1
+        self.rotation = quat_look_at(self.forward, self.upward)
 
     def camera(self):
         eye = self.position - self.forward * 4.0 + self.upward * 2.0
@@ -217,6 +235,7 @@ def render_object(name, position, rotation):
 
 
 space_ship = SpaceShip()
+canisters = np.random.uniform(-50.0, 50.0, (150, 3))
 
 
 def render():
@@ -224,10 +243,14 @@ def render():
     ctx.new_frame()
     image.clear()
     depth.clear()
-    space_ship.update()
+    yaw = -0.01 if window.key_down('KeyA') else 0.01 if window.key_down('KeyD') else 0.0
+    pitch = -0.01 if window.key_down('KeyW') else 0.01 if window.key_down('KeyS') else 0.0
+    roll = -0.01 if window.key_down('KeyQ') else 0.01 if window.key_down('KeyE') else 0.0
+    space_ship.update(yaw, pitch, roll)
     uniform_buffer.write(space_ship.camera())
     render_object('SpaceShip', space_ship.position, space_ship.rotation)
-    render_object('Canister', glm.vec3(0.0, -2.0, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0))
+    for c in canisters:
+        render_object('Canister', glm.vec3(c), glm.quat(1.0, 0.0, 0.0, 0.0))
     image.blit()
     ctx.end_frame()
 
