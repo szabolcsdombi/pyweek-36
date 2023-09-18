@@ -9,10 +9,6 @@ pyglet.options['shadow_window'] = False
 pyglet.options['debug_gl'] = False
 
 
-def fixquat(q):
-    return q[1], q[2], q[3], q[0]
-
-
 KEYS = {
     1: 'Mouse1',
     2: 'Mouse3',
@@ -204,7 +200,7 @@ class SpaceShip:
     def update(self):
         self.position += self.forward * 0.01
         basis = glm.lookAt(self.position, self.position + self.forward, self. upward)
-        self.rotation = fixquat(glm.quat_cast(basis) * glm.quat(0.7071, -0.7071, 0.0, 0.0) * glm.quat(0.0, 0.0, 0.0, 1.0))
+        self.rotation = glm.quat_cast(basis) * glm.quat(0.0, 0.0, 0.7071, 0.7071)
 
     def camera(self):
         eye = self.position - self.forward * 4.0 + self.upward * 2.0
@@ -216,7 +212,7 @@ class SpaceShip:
 def render_object(name, position, rotation):
     pipeline = pipelines[name]
     pipeline.uniforms['position'][:] = struct.pack('3f', *position)
-    pipeline.uniforms['rotation'][:] = struct.pack('4f', *rotation)
+    pipeline.uniforms['rotation'][:] = struct.pack('4f', *glm.quat_to_vec4(rotation))
     pipeline.render()
 
 
@@ -231,7 +227,7 @@ def render():
     space_ship.update()
     uniform_buffer.write(space_ship.camera())
     render_object('SpaceShip', space_ship.position, space_ship.rotation)
-    render_object('Canister', (0.0, -2.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+    render_object('Canister', glm.vec3(0.0, -2.0, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0))
     image.blit()
     ctx.end_frame()
 
