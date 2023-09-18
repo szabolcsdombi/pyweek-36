@@ -251,6 +251,24 @@ class Smoke:
         render_object('Smoke', self.position, self.rotation, self.size)
 
 
+class CollectedCanister:
+    def __init__(self, collector, canister):
+        self.collector = collector
+        self.canister = canister
+        self.counter = 10
+        self.alive = True
+
+    def update(self):
+        self.counter -= 1
+        self.alive = self.counter > 0
+        f = self.counter / 10.0
+        self.canister.update()
+        self.position = self.canister.position * f + self.collector.position * (1.0 - f)
+
+    def render(self):
+        render_object('Canister', self.position, self.canister.rotation, 1.0)
+
+
 class SpaceShip:
     def __init__(self):
         self.position = glm.vec3(0.0, 0.0, 0.0)
@@ -269,9 +287,10 @@ class SpaceShip:
         self.position += self.forward * 0.3
         self.rotation = quat_look_at(temp_forward, temp_upward)
 
-        for obj in world.nearby(self.position, 2.0):
+        for obj in world.nearby(self.position, 4.0):
             if type(obj) is Canister:
                 obj.alive = False
+                world.add(CollectedCanister(self, obj))
 
         world.add(Smoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
         world.add(Smoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
