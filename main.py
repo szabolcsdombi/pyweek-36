@@ -156,7 +156,7 @@ def make_pipeline(vertex_index, vertex_count):
 
             void main() {
                 vec3 light = vec3(4.0, 3.0, 10.0);
-                float lum = dot(normalize(light), normalize(v_normal)) * 0.7 + 0.3;
+                float lum = dot(normalize(light), normalize(v_normal)) * 0.3 + 0.7;
                 out_color = vec4(pow(v_color * lum, vec3(1.0 / 2.2)), 1.0);
             }
         ''',
@@ -214,11 +214,18 @@ class SpaceShip:
         self.position = glm.vec3(0.0, 0.0, 0.0)
         self.forward = glm.vec3(0.0, -1.0, 0.0)
         self.upward = glm.vec3(0.0, 0.0, 1.0)
+        self.yaw = 0.0
+        self.pitch = 0.0
+        self.roll = 0.0
 
     def update(self, yaw, pitch, roll):
-        self.forward, self.upward = rotate(self.forward, self.upward, yaw, pitch, roll)
-        self.position += self.forward * 0.1
-        self.rotation = quat_look_at(self.forward, self.upward)
+        self.forward, self.upward = rotate(self.forward, self.upward, self.yaw * 0.5, self.pitch * 0.5, self.roll * 0.5)
+        self.yaw = (self.yaw + yaw) * 0.9
+        self.pitch = (self.pitch + pitch) * 0.9
+        self.roll = (self.roll + roll) * 0.9
+        self.position += self.forward * 0.3
+        temp_forward, temp_upward = rotate(self.forward, self.upward, self.yaw * 2.0, self.pitch * 2.0, self.roll * 2.0)
+        self.rotation = quat_look_at(temp_forward, temp_upward)
 
     def camera(self):
         eye = self.position - self.forward * 4.0 + self.upward * 2.0
