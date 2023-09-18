@@ -1,4 +1,5 @@
 import pickle
+import struct
 
 import pyglet
 import zengl
@@ -106,7 +107,7 @@ image.clear_value = (0.0, 0.0, 0.0, 1.0)
 with open('assets/assets.pickle', 'rb') as f:
     assets = pickle.load(f)
 
-vertex_buffer = ctx.buffer(assets['SpaceShip'])
+vertex_buffer = ctx.buffer(assets['VertexData'])
 
 uniform_buffer = ctx.buffer(size=64)
 
@@ -116,9 +117,16 @@ def make_pipeline(vertex_index, vertex_count):
         vertex_shader='''
             #version 330 core
 
+            vec3 qtransform(vec4 q, vec3 v) {
+                return v + 2.0 * cross(cross(v, q.xyz) - q.w * v, q.xyz);
+            }
+
             layout (std140) uniform Common {
                 mat4 mvp;
             };
+
+            uniform vec3 position;
+            uniform vec4 rotation;
 
             layout (location = 0) in vec3 in_vertex;
             layout (location = 1) in vec3 in_normal;
@@ -129,8 +137,8 @@ def make_pipeline(vertex_index, vertex_count):
             out vec3 v_color;
 
             void main() {
-                v_vertex = in_vertex;
-                v_normal = in_normal;
+                v_vertex = position + qtransform(rotation, in_vertex);
+                v_normal = qtransform(rotation, in_normal);
                 v_color = in_color;
                 gl_Position = mvp * vec4(v_vertex, 1.0);
             }
@@ -163,6 +171,10 @@ def make_pipeline(vertex_index, vertex_count):
                 'buffer': uniform_buffer,
             },
         ],
+        uniforms={
+            'position': [0.0, 0.0, 0.0],
+            'rotation': [0.0, 0.0, 0.0, 1.0],
+        },
         framebuffer=[image, depth],
         topology='triangles',
         cull_face='back',
@@ -173,9 +185,16 @@ def make_pipeline(vertex_index, vertex_count):
 
 
 pipelines = {
-    'SpaceShip': make_pipeline(0, 840),
-    'Canister': make_pipeline(0, 0),
+    name: make_pipeline(vertex_offset, vertex_count)
+    for name, vertex_offset, vertex_count in assets['Objects']
 }
+
+
+def render_object(name, position, rotation):
+    pipeline = pipelines[name]
+    pipeline.uniforms['position'][:] = struct.pack('3f', *position)
+    pipeline.uniforms['rotation'][:] = struct.pack('4f', *rotation)
+    pipeline.render()
 
 
 def render():
@@ -185,8 +204,8 @@ def render():
     depth.clear()
     camera = zengl.camera((3.0, 2.0, 2.0), (0.0, 0.0, 0.0), aspect=window.aspect, fov=45.0)
     uniform_buffer.write(camera)
-    pipelines['SpaceShip'].render()
-    pipelines['Canister'].render()
+    render_object('SpaceShip', (0.0, 1.0, 0.0), (0.0, 0.0, 0.0, 1.0))
+    render_object('Canister', (0.0, -2.0, 0.0), (0.0, 0.0, 0.0, 1.0))
     image.blit()
     ctx.end_frame()
 
