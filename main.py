@@ -130,6 +130,7 @@ def make_pipeline(vertex_index, vertex_count):
 
             uniform vec3 position;
             uniform vec4 rotation;
+            uniform float scale;
 
             layout (location = 0) in vec3 in_vertex;
             layout (location = 1) in vec3 in_normal;
@@ -140,7 +141,7 @@ def make_pipeline(vertex_index, vertex_count):
             out vec3 v_color;
 
             void main() {
-                v_vertex = position + qtransform(rotation, in_vertex);
+                v_vertex = position + qtransform(rotation, in_vertex * scale);
                 v_normal = qtransform(rotation, in_normal);
                 v_color = in_color;
                 gl_Position = mvp * vec4(v_vertex, 1.0);
@@ -177,6 +178,7 @@ def make_pipeline(vertex_index, vertex_count):
         uniforms={
             'position': [0.0, 0.0, 0.0],
             'rotation': [0.0, 0.0, 0.0, 1.0],
+            'scale': 1.0,
         },
         framebuffer=[image, depth],
         topology='triangles',
@@ -193,10 +195,11 @@ pipelines = {
 }
 
 
-def render_object(name, position, rotation):
+def render_object(name, position, rotation, scale):
     pipeline = pipelines[name]
     pipeline.uniforms['position'][:] = struct.pack('3f', *position)
     pipeline.uniforms['rotation'][:] = struct.pack('4f', *glm.quat_to_vec4(rotation))
+    pipeline.uniforms['scale'][:] = struct.pack('f', scale)
     pipeline.render()
 
 
@@ -234,6 +237,7 @@ class Smoke:
         self.position = position
         self.velocity = velocity
         self.rotation = random_rotation()
+        self.size = random.random() * 0.6 + 0.9
         self.counter = 300
         self.alive = True
 
@@ -244,7 +248,7 @@ class Smoke:
         self.alive = self.counter > 0
 
     def render(self):
-        render_object('Smoke', self.position, self.rotation)
+        render_object('Smoke', self.position, self.rotation, self.size)
 
 
 class SpaceShip:
@@ -273,7 +277,7 @@ class SpaceShip:
         world.add(Smoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
     def render(self):
-        render_object('SpaceShip0', self.position, self.rotation)
+        render_object('SpaceShip0', self.position, self.rotation, 1.0)
 
     def camera(self):
         eye = self.position - self.forward * 6.0 + self.upward * 2.0
@@ -293,7 +297,7 @@ class Canister:
         self.rotation = glm.angleAxis(0.05, self.axis) * self.rotation
 
     def render(self):
-        render_object('Canister', self.position, self.rotation)
+        render_object('Canister', self.position, self.rotation, 1.0)
 
 
 class SpaceShipControl:
