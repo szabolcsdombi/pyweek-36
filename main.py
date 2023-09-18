@@ -238,7 +238,7 @@ class Smoke:
         self.velocity = velocity
         self.rotation = random_rotation()
         self.size = random.random() * 0.6 + 0.9
-        self.counter = 300
+        self.counter = 90
         self.alive = True
 
     def update(self):
@@ -303,7 +303,7 @@ class SpaceShip:
         eye = self.position - self.forward * 6.0 + self.upward * 2.0
         target = self.position + self.forward * 2.0
         up = self.upward
-        return zengl.camera(eye, target, up, aspect=window.aspect, fov=45.0)
+        return zengl.camera(eye, target, up, aspect=window.aspect, fov=60.0)
 
 
 class WanderingShip:
@@ -320,7 +320,7 @@ class WanderingShip:
         self.alive = True
 
     def update(self):
-        user_input = glm.vec3(random.random(), random.random(), random.random()) * 2.0 - 1.0
+        user_input = glm.vec3(random.random(), random.random(), random.random()) * 0.08 - 0.04
         self.space_ship.user_input = glm.clamp(self.space_ship.user_input + user_input, glm.vec3(0.0), glm.vec3(1.0))
         self.space_ship.update()
         self.position = self.space_ship.position
@@ -380,7 +380,7 @@ controller = SpaceShipControl(space_ship)
 
 
 world.add(space_ship)
-for _ in range(5):
+for _ in range(10):
     world.add(WanderingShip())
 for _ in range(150):
     world.add(Canister())
