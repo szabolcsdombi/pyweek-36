@@ -92,6 +92,9 @@ class Window:
     def key_down(self, key):
         return key in self._wnd.keys
 
+    def key_pressed(self, key):
+        return key in self._wnd.keys and key not in self._wnd.prev_keys
+
     def update(self):
         pass
 
@@ -398,9 +401,84 @@ for _ in range(150):
     world.add(Canister())
 
 
+class SmokeParticle:
+    def __init__(self, position, velocity, scale, life):
+        self.position = position
+        self.rotation = random_rotation()
+        self.velocity = velocity
+        self.scale = scale
+        self.life = life
+
+    def render(self, frame):
+        position = self.position + self.velocity * math.sqrt(frame * 10.0) / 60.0
+        scale = self.scale + frame * 0.01
+        if frame < self.life:
+            render_object('Smoke', position, self.rotation, scale)
+
+
+class WindParticle:
+    def __init__(self, position, velocity, acceleration, scale, life):
+        self.position = position
+        self.rotation = random_rotation()
+        self.velocity = velocity
+        self.acceleration = acceleration
+        self.scale = scale
+        self.life = life
+
+    def update(self):
+        self.position += self.velocity
+        self.velocity += self.acceleration
+        self.life -= 1
+
+    def render(self):
+        render_object('Smoke', self.position, self.rotation, self.scale)
+
+
+class Explosion:
+    def __init__(self, position):
+        self.position = position
+        self.smoke = []
+        self.frame = 0
+
+    def update(self):
+        if self.frame == 0:
+            for _ in range(60):
+                position = random_rotation() * glm.vec3(0.1, 0.0, 0.0)
+                velocity = position * 24.0 + random_rotation() * glm.vec3(0.5, 0.0, 0.0)
+                scale = random.gauss(3.0, 0.5)
+                life = random.randint(20, 30)
+                self.smoke.append(SmokeParticle(self.position + position, velocity, scale, life))
+        self.frame += 1
+
+    def render(self):
+        for s in self.smoke:
+            s.render(self.frame)
+
+
+class Wind:
+    def __init__(self):
+        self.smoke = []
+
+    def update(self):
+        position = rz(random.random() * math.pi * 2.0) * glm.vec3(0.3, 0.0, 0.0)
+        velocity = position * 0.02 + random_rotation() * glm.vec3(0.001, 0.0, 0.0)
+        scale = random.gauss(1.0, 0.1)
+        life = random.randint(20, 30)
+        self.smoke.append(WindParticle(position, velocity, velocity * 0.1, scale, life))
+        for s in self.smoke:
+            s.update()
+        self.smoke = [s for s in self.smoke if s.life > 0]
+
+    def render(self):
+        for s in self.smoke:
+            s.render()
+
+
 hangar = {
     'time': 0.0,
     'space_ship': 'SpaceShip0',
+    'explosion': Explosion((0.0, 0.0, 0.6)),
+    'wind': Wind(),
 }
 
 
@@ -416,10 +494,17 @@ def render():
     # uniform_buffer.write(space_ship.camera())
     # world.render()
 
+    hangar['explosion'].update()
+    hangar['explosion'].render()
+
+    hangar['wind'].update()
+    hangar['wind'].render()
+
     hangar['time'] += 1.0 / 60.0
     for i in range(8):
-        if window.key_down(f'Key{i + 1}'):
+        if window.key_pressed(f'Key{i + 1}'):
             hangar['space_ship'] = f'SpaceShip{i}'
+            hangar['explosion'] = Explosion((0.0, 0.0, 0.6))
 
     eye = glm.vec3(0.63, 3.2, 1.36)
     eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
