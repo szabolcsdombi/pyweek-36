@@ -232,6 +232,14 @@ def random_rotation():
     )
 
 
+def rx(angle):
+    return glm.quat(math.cos(angle * 0.5), math.sin(angle * 0.5), 0.0, 0.0)
+
+
+def ry(angle):
+    return glm.quat(math.cos(angle * 0.5), 0.0, math.sin(angle * 0.5), 0.0)
+
+
 def rz(angle):
     return glm.quat(math.cos(angle * 0.5), 0.0, 0.0, math.sin(angle * 0.5))
 
@@ -390,6 +398,12 @@ for _ in range(150):
     world.add(Canister())
 
 
+hangar = {
+    'time': 0.0,
+    'space_ship': 'SpaceShip0',
+}
+
+
 def render():
     window.update()
     ctx.new_frame()
@@ -402,9 +416,16 @@ def render():
     # uniform_buffer.write(space_ship.camera())
     # world.render()
 
-    uniform_buffer.write(zengl.camera((0.63, 3.2, 1.16), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect))
-    render_object('Base', glm.vec3(0.0, -3.0, -0.2), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
-    render_object('SpaceShip2', glm.vec3(0.0, 0.0, 0.0), rz(math.pi * 0.75), 1.0)
+    hangar['time'] += 1.0 / 60.0
+    for i in range(8):
+        if window.key_down(f'Key{i + 1}'):
+            hangar['space_ship'] = f'SpaceShip{i}'
+
+    eye = glm.vec3(0.63, 3.2, 1.36)
+    eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
+    uniform_buffer.write(zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect))
+    render_object('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
+    render_object(hangar['space_ship'], glm.vec3(0.0, 0.0, 0.6 + math.sin(hangar['time'] * 3.0) * 0.1), rz(math.pi * 0.85), 0.6)
 
     image.blit()
     ctx.end_frame()
