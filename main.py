@@ -286,7 +286,8 @@ class CollectedCanister:
 
 
 class SpaceShip:
-    def __init__(self):
+    def __init__(self, space_ship_model):
+        self.space_ship_model = space_ship_model
         self.position = glm.vec3(0.0, 0.0, 0.0)
         self.forward = glm.vec3(0.0, -1.0, 0.0)
         self.upward = glm.vec3(0.0, 0.0, 1.0)
@@ -312,7 +313,7 @@ class SpaceShip:
         world.add(Smoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
     def render(self):
-        render_object('SpaceShip0', self.position, self.rotation, 1.0)
+        render_object(self.space_ship_model, self.position, self.rotation, 1.0)
 
     def camera(self):
         eye = self.position - self.forward * 6.0 + self.upward * 2.0
@@ -323,7 +324,7 @@ class SpaceShip:
 
 class WanderingShip:
     def __init__(self):
-        self.space_ship = SpaceShip()
+        self.space_ship = SpaceShip(f'SpaceShip{random.randrange(0, 8)}')
         position = random_rotation() * glm.vec3(100.0, 0.0, 0.0)
         forward = glm.normalize(random_rotation() * glm.vec3(20.0, 0.0, 0.0) - position)
         upward = random_rotation() * glm.vec3(1.0, 0.0, 0.0)
@@ -341,7 +342,7 @@ class WanderingShip:
         self.position = self.space_ship.position
 
     def render(self):
-        render_object('SpaceShip1', self.space_ship.position, self.space_ship.rotation, 1.0)
+        self.space_ship.render()
 
 
 class Canister:
@@ -390,7 +391,7 @@ class World:
 
 
 world = World()
-space_ship = SpaceShip()
+space_ship = SpaceShip('SpaceShip0')
 controller = SpaceShipControl(space_ship)
 
 
@@ -479,6 +480,7 @@ hangar = {
     'space_ship': 'SpaceShip0',
     'explosion': Explosion((0.0, 0.0, 0.6)),
     'wind': Wind(),
+    'playing': False,
 }
 
 
@@ -488,29 +490,35 @@ def render():
     image.clear()
     depth.clear()
 
-    # controller.update()
+    if hangar['playing']:
+        controller.update()
 
-    # world.update()
-    # uniform_buffer.write(space_ship.camera())
-    # world.render()
+        world.update()
+        uniform_buffer.write(space_ship.camera())
+        world.render()
 
-    hangar['explosion'].update()
-    hangar['explosion'].render()
+    else:
+        hangar['explosion'].update()
+        hangar['explosion'].render()
 
-    hangar['wind'].update()
-    hangar['wind'].render()
+        hangar['wind'].update()
+        hangar['wind'].render()
 
-    hangar['time'] += 1.0 / 60.0
-    for i in range(8):
-        if window.key_pressed(f'Key{i + 1}'):
-            hangar['space_ship'] = f'SpaceShip{i}'
-            hangar['explosion'] = Explosion((0.0, 0.0, 0.6))
+        hangar['time'] += 1.0 / 60.0
+        for i in range(8):
+            if window.key_pressed(f'Key{i + 1}'):
+                hangar['space_ship'] = f'SpaceShip{i}'
+                hangar['explosion'] = Explosion((0.0, 0.0, 0.6))
 
-    eye = glm.vec3(0.63, 3.2, 1.36)
-    eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
-    uniform_buffer.write(zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect))
-    render_object('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
-    render_object(hangar['space_ship'], glm.vec3(0.0, 0.0, 0.6 + math.sin(hangar['time'] * 3.0) * 0.1), rz(math.pi * 0.85), 0.6)
+        if window.key_pressed('KeyF'):
+            space_ship.space_ship_model = hangar['space_ship']
+            hangar['playing'] = True
+
+        eye = glm.vec3(0.63, 3.2, 1.36)
+        eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
+        uniform_buffer.write(zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect))
+        render_object('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
+        render_object(hangar['space_ship'], glm.vec3(0.0, 0.0, 0.6 + math.sin(hangar['time'] * 3.0) * 0.1), rz(math.pi * 0.85), 0.6)
 
     image.blit()
     ctx.end_frame()
