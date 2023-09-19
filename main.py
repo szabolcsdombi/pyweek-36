@@ -232,6 +232,10 @@ def random_rotation():
     )
 
 
+def rz(angle):
+    return glm.quat(math.cos(angle * 0.5), 0.0, 0.0, math.sin(angle * 0.5))
+
+
 class Smoke:
     def __init__(self, position, velocity):
         self.position = position
@@ -392,11 +396,15 @@ def render():
     image.clear()
     depth.clear()
 
-    controller.update()
+    # controller.update()
 
-    world.update()
-    uniform_buffer.write(space_ship.camera())
-    world.render()
+    # world.update()
+    # uniform_buffer.write(space_ship.camera())
+    # world.render()
+
+    uniform_buffer.write(zengl.camera((0.63, 3.2, 1.16), (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect))
+    render_object('Base', glm.vec3(0.0, -3.0, -0.2), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
+    render_object('SpaceShip2', glm.vec3(0.0, 0.0, 0.0), rz(math.pi * 0.75), 1.0)
 
     image.blit()
     ctx.end_frame()
