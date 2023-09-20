@@ -10,7 +10,6 @@ import zengl
 pyglet.options['shadow_window'] = False
 pyglet.options['debug_gl'] = False
 
-
 KEYS = {
     1: 'Mouse1',
     2: 'Mouse3',
@@ -22,7 +21,7 @@ for c in '0123456789abcdefghijklmnopqrstuvwxyz':
 
 
 class PygletWindow(pyglet.window.Window):
-    def __init__(self, width, height):
+    def __init__(self):
         self.alive = True
         self.mouse = (0, 0)
         self.prev_keys = set()
@@ -35,7 +34,7 @@ class PygletWindow(pyglet.window.Window):
             depth_size=0,
             samples=0,
         )
-        super().__init__(width=width, height=height, config=config, vsync=True)
+        super().__init__(fullscreen=True, config=config, vsync=True)
 
     def on_resize(self, width, height):
         pass
@@ -80,9 +79,9 @@ class PygletWindow(pyglet.window.Window):
 
 class Window:
     def __init__(self):
-        self._wnd = PygletWindow(1280, 720)
+        self._wnd = PygletWindow()
         self.size = self._wnd.get_framebuffer_size()
-        self.aspect = 16.0 / 9.0
+        self.aspect = self.size[0] / self.size[1]
         self.loader = None
 
     @property
@@ -102,24 +101,79 @@ class Window:
         return self._wnd.update()
 
 
-window = Window()
+def rotate(forward, upward, yaw, pitch, roll):
+    upward = glm.angleAxis(roll, forward) * upward
+    forward = glm.angleAxis(-yaw, upward) * forward
+    sideways = glm.normalize(glm.cross(forward, upward))
+    forward = glm.angleAxis(pitch, sideways) * forward
+    upward = glm.normalize(glm.cross(sideways, forward))
+    return forward, upward
 
-ctx = zengl.context(window.loader)
 
-image = ctx.image(window.size, 'rgba8unorm', texture=False)
-depth = ctx.image(window.size, 'depth24plus', texture=False)
-image.clear_value = (0.0, 0.0, 0.0, 1.0)
+def quat_look_at(forward, upward):
+    forward = glm.normalize(forward)
+    sideways = glm.normalize(glm.cross(forward, upward))
+    upward = glm.normalize(glm.cross(sideways, forward))
+    basis = glm.mat3(-sideways, -forward, upward)
+    return glm.quat_cast(basis)
+
+
+def random_rotation():
+    u1 = random.random()
+    u2 = random.random()
+    u3 = random.random()
+    return glm.quat(
+        math.sqrt(1.0 - u1) * math.sin(2.0 * math.pi * u2),
+        math.sqrt(1.0 - u1) * math.cos(2.0 * math.pi * u2),
+        math.sqrt(u1) * math.sin(2.0 * math.pi * u3),
+        math.sqrt(u1) * math.cos(2.0 * math.pi * u3),
+    )
+
+
+def rx(angle):
+    return glm.quat(math.cos(angle * 0.5), math.sin(angle * 0.5), 0.0, 0.0)
+
+
+def ry(angle):
+    return glm.quat(math.cos(angle * 0.5), 0.0, math.sin(angle * 0.5), 0.0)
+
+
+def rz(angle):
+    return glm.quat(math.cos(angle * 0.5), 0.0, 0.0, math.sin(angle * 0.5))
+
 
 with open('assets/assets.pickle', 'rb') as f:
     assets = pickle.load(f)
 
-vertex_buffer = ctx.buffer(assets['VertexData'])
+window = Window()
+
+ctx = zengl.context(window.loader)
+
+image = ctx.image(window.size, 'rgba8unorm', samples=4)
+depth = ctx.image(window.size, 'depth24plus', samples=4)
+image.clear_value = (0.0, 0.0, 0.0, 1.0)
 
 uniform_buffer = ctx.buffer(size=96)
 
-sky = ctx.image((128, 128), 'rgba8unorm', array=7, data=assets['Sprites'])
+object_vertex_buffer = ctx.buffer(assets['VertexData'])
 
-background_vertex_buffer = ctx.buffer(size=1024 * 1024)
+background_sprites = ctx.image((128, 128), 'rgba8unorm', array=7, data=assets['Sprites'])
+background_instance_buffer = ctx.buffer(size=1024 * 1024)
+background_instances = bytearray()
+
+for i in range(1000):
+    rotation = random_rotation()
+    background_instances.extend(struct.pack('4f1f1f', *rotation, random.uniform(150.0, 250.0), 0.0)),
+
+for i in range(200):
+    rotation = random_rotation()
+    background_instances.extend(struct.pack('4f1f1f', *rotation, 5.0, 1.0)),
+
+for i in range(5):
+    rotation = random_rotation()
+    background_instances.extend(struct.pack('4f1f1f', *rotation, random.gauss(25.0, 5.0), i + 2))
+
+background_instance_buffer.write(background_instances)
 
 background = ctx.pipeline(
     vertex_shader='''
@@ -186,7 +240,7 @@ background = ctx.pipeline(
         {
             'type': 'sampler',
             'binding': 0,
-            'image': sky,
+            'image': background_sprites,
         },
     ],
     blend={
@@ -196,7 +250,7 @@ background = ctx.pipeline(
     },
     framebuffer=[image],
     topology='triangle_strip',
-    vertex_buffers=zengl.bind(background_vertex_buffer, '4f 1f 1f /i', 0, 1, 2),
+    vertex_buffers=zengl.bind(background_instance_buffer, '4f 1f 1f /i', 0, 1, 2),
     vertex_count=4,
 )
 
@@ -339,7 +393,7 @@ beam_pipeline = ctx.pipeline(
 )
 
 
-def make_pipeline(vertex_index, vertex_count):
+def make_object_pipeline(vertex_index, vertex_count):
     return ctx.pipeline(
         vertex_shader='''
             #version 330 core
@@ -407,14 +461,14 @@ def make_pipeline(vertex_index, vertex_count):
         framebuffer=[image, depth],
         topology='triangles',
         cull_face='back',
-        vertex_buffers=zengl.bind(vertex_buffer, '3f 3f 3f', 0, 1, 2),
+        vertex_buffers=zengl.bind(object_vertex_buffer, '3f 3f 3f', 0, 1, 2),
         first_vertex=vertex_index,
         vertex_count=vertex_count,
     )
 
 
-pipelines = {
-    name: make_pipeline(vertex_offset, vertex_count)
+object_pipeline = {
+    name: make_object_pipeline(vertex_offset, vertex_count)
     for name, vertex_offset, vertex_count in assets['Objects']
 }
 
@@ -426,52 +480,11 @@ def render_object(name, position, rotation, scale):
     if name == 'Beam':
         beam_instances.extend(struct.pack('3f4f1f', *position, *glm.quat_to_vec4(rotation), scale))
         return
-    pipeline = pipelines[name]
+    pipeline = object_pipeline[name]
     pipeline.uniforms['position'][:] = struct.pack('3f', *position)
     pipeline.uniforms['rotation'][:] = struct.pack('4f', *glm.quat_to_vec4(rotation))
     pipeline.uniforms['scale'][:] = struct.pack('f', scale)
     pipeline.render()
-
-
-def rotate(forward, upward, yaw, pitch, roll):
-    upward = glm.angleAxis(roll, forward) * upward
-    forward = glm.angleAxis(-yaw, upward) * forward
-    sideways = glm.normalize(glm.cross(forward, upward))
-    forward = glm.angleAxis(pitch, sideways) * forward
-    upward = glm.normalize(glm.cross(sideways, forward))
-    return forward, upward
-
-
-def quat_look_at(forward, upward):
-    forward = glm.normalize(forward)
-    sideways = glm.normalize(glm.cross(forward, upward))
-    upward = glm.normalize(glm.cross(sideways, forward))
-    basis = glm.mat3(-sideways, -forward, upward)
-    return glm.quat_cast(basis)
-
-
-def random_rotation():
-    u1 = random.random()
-    u2 = random.random()
-    u3 = random.random()
-    return glm.quat(
-        math.sqrt(1.0 - u1) * math.sin(2.0 * math.pi * u2),
-        math.sqrt(1.0 - u1) * math.cos(2.0 * math.pi * u2),
-        math.sqrt(u1) * math.sin(2.0 * math.pi * u3),
-        math.sqrt(u1) * math.cos(2.0 * math.pi * u3),
-    )
-
-
-def rx(angle):
-    return glm.quat(math.cos(angle * 0.5), math.sin(angle * 0.5), 0.0, 0.0)
-
-
-def ry(angle):
-    return glm.quat(math.cos(angle * 0.5), 0.0, math.sin(angle * 0.5), 0.0)
-
-
-def rz(angle):
-    return glm.quat(math.cos(angle * 0.5), 0.0, 0.0, math.sin(angle * 0.5))
 
 
 class Beam:
@@ -482,7 +495,7 @@ class Beam:
         self.life = 200
         self.alive = True
 
-    def update(self):
+    def update(self, world):
         self.life -= 1
         self.alive = self.life > 0
         self.position += self.velocity
@@ -500,7 +513,7 @@ class Smoke:
         self.counter = 90
         self.alive = True
 
-    def update(self):
+    def update(self, world):
         self.position += self.velocity
         self.velocity *= 0.9
         self.counter -= 1
@@ -518,11 +531,11 @@ class CollectedCanister:
         self.counter = 10
         self.alive = True
 
-    def update(self):
+    def update(self, world):
         self.counter -= 1
         self.alive = self.counter > 0
         f = self.counter / 10.0
-        self.canister.update()
+        self.canister.update(world)
         self.position = self.canister.position * f + self.collector.position * (1.0 - f)
 
     def render(self):
@@ -540,7 +553,7 @@ class SpaceShip:
         self.rotation = glm.quat(1.0, 0.0, 0.0, 0.0)
         self.alive = True
 
-    def update(self):
+    def update(self, world):
         yaw, pitch, roll = self.yaw_pitch_roll
         self.forward, self.upward = rotate(self.forward, self.upward, yaw * 0.5, pitch * 0.5, roll * 0.5)
         temp_forward, temp_upward = rotate(self.forward, self.upward, yaw * 2.0, pitch * 2.0, roll * 2.0)
@@ -581,10 +594,10 @@ class WanderingShip:
         self.position = self.space_ship.position
         self.alive = True
 
-    def update(self):
+    def update(self, world):
         user_input = glm.vec3(random.random(), random.random(), random.random()) * 0.08 - 0.04
         self.space_ship.user_input = glm.clamp(self.space_ship.user_input + user_input, glm.vec3(0.0), glm.vec3(1.0))
-        self.space_ship.update()
+        self.space_ship.update(world)
         self.position = self.space_ship.position
 
     def render(self):
@@ -598,7 +611,7 @@ class Canister:
         self.axis = random_rotation() * glm.vec3(1.0, 0.0, 0.0)
         self.alive = True
 
-    def update(self):
+    def update(self, world):
         self.rotation = glm.angleAxis(0.05, self.axis) * self.rotation
 
     def render(self):
@@ -628,24 +641,12 @@ class World:
 
     def update(self):
         for obj in self.game_objects:
-            obj.update()
+            obj.update(self)
         self.game_objects = [obj for obj in self.game_objects if obj.alive]
 
     def render(self):
         for obj in self.game_objects:
             obj.render()
-
-
-world = World()
-space_ship = SpaceShip('SpaceShip0')
-controller = SpaceShipControl(space_ship)
-
-
-world.add(space_ship)
-for _ in range(10):
-    world.add(WanderingShip())
-for _ in range(150):
-    world.add(Canister())
 
 
 class SmokeParticle:
@@ -655,12 +656,18 @@ class SmokeParticle:
         self.velocity = velocity
         self.scale = scale
         self.life = life
+        self.alive = True
+        self.frame = 0
 
-    def render(self, frame):
-        position = self.position + self.velocity * math.sqrt(frame * 10.0) / 60.0
-        scale = self.scale + frame * 0.01
-        if frame < self.life:
-            render_object('Smoke', position, self.rotation, scale)
+    def update(self, world):
+        self.frame += 1
+        self.life -= 1
+        self.alive = self.life > 0
+
+    def render(self):
+        position = self.position + self.velocity * math.sqrt(self.frame * 10.0) / 60.0
+        scale = self.scale + self.frame * 0.01
+        render_object('Smoke', position, self.rotation, scale)
 
 
 class WindParticle:
@@ -671,11 +678,13 @@ class WindParticle:
         self.acceleration = acceleration
         self.scale = scale
         self.life = life
+        self.alive = True
 
-    def update(self):
+    def update(self, world):
         self.position += self.velocity
         self.velocity += self.acceleration
         self.life -= 1
+        self.alive = self.life > 0
 
     def render(self):
         render_object('Smoke', self.position, self.rotation, self.scale)
@@ -684,72 +693,133 @@ class WindParticle:
 class Explosion:
     def __init__(self, position):
         self.position = position
-        self.smoke = []
-        self.frame = 0
+        self.alive = False
 
-    def update(self):
-        if self.frame == 0:
-            for _ in range(60):
-                position = random_rotation() * glm.vec3(0.1, 0.0, 0.0)
-                velocity = position * 24.0 + random_rotation() * glm.vec3(0.5, 0.0, 0.0)
-                scale = random.gauss(3.0, 0.5)
-                life = random.randint(20, 30)
-                self.smoke.append(SmokeParticle(self.position + position, velocity, scale, life))
-        self.frame += 1
+    def update(self, world):
+        for _ in range(60):
+            position = random_rotation() * glm.vec3(0.1, 0.0, 0.0)
+            velocity = position * 24.0 + random_rotation() * glm.vec3(0.5, 0.0, 0.0)
+            scale = random.gauss(3.0, 0.5)
+            life = random.randint(20, 30)
+            world.add(SmokeParticle(self.position + position, velocity, scale, life))
+
+        self.alive = False
 
     def render(self):
-        for s in self.smoke:
-            s.render(self.frame)
+        pass
 
 
 class Wind:
     def __init__(self):
-        self.smoke = []
+        self.position = glm.vec3(0.0, 0.0, 0.0)
+        self.alive = True
 
-    def update(self):
-        position = rz(random.random() * math.pi * 2.0) * glm.vec3(0.3, 0.0, 0.0)
+    def update(self, world):
+        position = rz(random.random() * math.pi * 2.0) * glm.vec3(0.25, 0.0, 0.0)
         velocity = position * 0.02 + random_rotation() * glm.vec3(0.001, 0.0, 0.0)
         scale = random.gauss(1.0, 0.1)
         life = random.randint(20, 30)
-        self.smoke.append(WindParticle(position, velocity, velocity * 0.1, scale, life))
-        for s in self.smoke:
-            s.update()
-        self.smoke = [s for s in self.smoke if s.life > 0]
+        world.add(WindParticle(position, velocity, velocity * 0.1, scale, life))
 
     def render(self):
-        for s in self.smoke:
-            s.render()
+        pass
 
 
-hangar = {
-    'time': 0.0,
-    'space_ship': 'SpaceShip0',
-    'explosion': Explosion((0.0, 0.0, 0.6)),
-    'wind': Wind(),
-    'playing': False,
-}
+class Intro:
+    def __init__(self):
+        self.countdown = 60
+
+    def render(self):
+        self.countdown -= 1
+        if self.countdown == 0:
+            g.scene = Base()
+
+        image.clear()
+        image.blit()
 
 
-temp = bytearray()
-count = 0
+class Base:
+    def __init__(self):
+        self.frame = 0
+        self.world = World()
+        self.world.add(Wind())
+        self.space_ship = 'SpaceShip0'
 
-for i in range(1000):
-    rotation = random_rotation()
-    temp.extend(struct.pack('4f1f1f', *rotation, random.uniform(150.0, 250.0), 0.0)),
-    count += 1
+    def render(self):
+        self.frame += 1
 
-for i in range(200):
-    rotation = random_rotation()
-    temp.extend(struct.pack('4f1f1f', *rotation, 5.0, 1.0)),
-    count += 1
+        smoke_instances.clear()
+        beam_instances.clear()
 
-for i in range(5):
-    rotation = random_rotation()
-    temp.extend(struct.pack('4f1f1f', *rotation, random.gauss(25.0, 5.0), i + 2))
-    count += 1
+        self.world.update()
 
-background_vertex_buffer.write(temp)
-background.instance_count = count
+        eye = glm.vec3(0.63, 3.2, 1.36)
+        eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
+        eye.z = max(eye.z, 0.1)
+        camera = zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect)
+        uniform_buffer.write(struct.pack('64s3f4x', camera, *eye))
+
+        background.instance_count = len(background_instances) // zengl.calcsize('4f 1f 1f')
+        background.render()
+
+        self.world.render()
+
+        for i in range(8):
+            if window.key_pressed(f'Key{i + 1}'):
+                self.space_ship = f'SpaceShip{i}'
+                self.world.add(Explosion((0.0, 0.0, 0.6)))
+
+        if window.key_pressed('KeyF'):
+            g.scene = Play(self.space_ship)
+
+        render_object('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
+        render_object(self.space_ship, glm.vec3(0.0, 0.0, 0.6 + math.sin(self.frame / 20.0) * 0.1), rz(math.pi * 0.85), 0.6)
+
+        smoke_instance_buffer.write(smoke_instances)
+        smoke_pipeline.instance_count = len(smoke_instances) // zengl.calcsize('3f 4f 1f')
+        smoke_pipeline.render()
+
+        beam_instance_buffer.write(beam_instances)
+        beam_pipeline.instance_count = len(beam_instances) // zengl.calcsize('3f 4f 1f')
+        beam_pipeline.render()
+
+
+class Play:
+    def __init__(self, space_ship_model):
+        self.world = World()
+        self.space_ship = SpaceShip(space_ship_model)
+        self.controller = SpaceShipControl(self.space_ship)
+
+        self.world.add(self.space_ship)
+        for _ in range(10):
+            self.world.add(WanderingShip())
+        for _ in range(150):
+            self.world.add(Canister())
+
+    def render(self):
+        smoke_instances.clear()
+        beam_instances.clear()
+
+        self.controller.update()
+
+        self.world.update()
+        uniform_buffer.write(struct.pack('64s3f4x', self.space_ship.camera(), *self.space_ship.position))
+        background.instance_count = len(background_instances) // zengl.calcsize('4f 1f 1f')
+        background.render()
+
+        self.world.render()
+
+        smoke_instance_buffer.write(smoke_instances)
+        smoke_pipeline.instance_count = len(smoke_instances) // zengl.calcsize('3f 4f 1f')
+        smoke_pipeline.render()
+
+        beam_instance_buffer.write(beam_instances)
+        beam_pipeline.instance_count = len(beam_instances) // zengl.calcsize('3f 4f 1f')
+        beam_pipeline.render()
+
+
+class g:
+    scene = Intro()
 
 
 def render():
@@ -757,51 +827,8 @@ def render():
     ctx.new_frame()
     image.clear()
     depth.clear()
-    smoke_instances.clear()
-    beam_instances.clear()
 
-    if hangar['playing']:
-        controller.update()
-
-        world.update()
-        uniform_buffer.write(struct.pack('64s3f4x', space_ship.camera(), *space_ship.position))
-        background.render()
-
-        world.render()
-
-    else:
-        eye = glm.vec3(0.63, 3.2, 1.36)
-        eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
-        camera = zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect)
-        uniform_buffer.write(struct.pack('64s3f4x', camera, *eye))
-        background.render()
-
-        hangar['explosion'].update()
-        hangar['explosion'].render()
-
-        hangar['wind'].update()
-        hangar['wind'].render()
-
-        hangar['time'] += 1.0 / 60.0
-        for i in range(8):
-            if window.key_pressed(f'Key{i + 1}'):
-                hangar['space_ship'] = f'SpaceShip{i}'
-                hangar['explosion'] = Explosion((0.0, 0.0, 0.6))
-
-        if window.key_pressed('KeyF'):
-            space_ship.space_ship_model = hangar['space_ship']
-            hangar['playing'] = True
-
-        render_object('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
-        render_object(hangar['space_ship'], glm.vec3(0.0, 0.0, 0.6 + math.sin(hangar['time'] * 3.0) * 0.1), rz(math.pi * 0.85), 0.6)
-
-    smoke_instance_buffer.write(smoke_instances)
-    smoke_pipeline.instance_count = len(smoke_instances) // zengl.calcsize('3f 4f 1f')
-    smoke_pipeline.render()
-
-    beam_instance_buffer.write(beam_instances)
-    beam_pipeline.instance_count = len(beam_instances) // zengl.calcsize('3f 4f 1f')
-    beam_pipeline.render()
+    g.scene.render()
 
     image.blit()
     ctx.end_frame()
