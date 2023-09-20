@@ -155,245 +155,8 @@ image.clear_value = (0.0, 0.0, 0.0, 1.0)
 
 uniform_buffer = ctx.buffer(size=96)
 
-object_vertex_buffer = ctx.buffer(assets['VertexData'])
 
-background_sprites = ctx.image((128, 128), 'rgba8unorm', array=7, data=assets['Sprites'])
-background_instance_buffer = ctx.buffer(size=1024 * 1024)
-background_instances = bytearray()
-
-for i in range(1000):
-    rotation = random_rotation()
-    background_instances.extend(struct.pack('4f1f1f', *rotation, random.uniform(150.0, 250.0), 0.0)),
-
-for i in range(200):
-    rotation = random_rotation()
-    background_instances.extend(struct.pack('4f1f1f', *rotation, 5.0, 1.0)),
-
-for i in range(5):
-    rotation = random_rotation()
-    background_instances.extend(struct.pack('4f1f1f', *rotation, random.gauss(25.0, 5.0), i + 2))
-
-background_instance_buffer.write(background_instances)
-
-background = ctx.pipeline(
-    vertex_shader='''
-        #version 330 core
-
-        vec3 qtransform(vec4 q, vec3 v) {
-            return v + 2.0 * cross(cross(v, q.xyz) - q.w * v, q.xyz);
-        }
-
-        layout (std140) uniform Common {
-            mat4 mvp;
-            vec4 camera_position;
-        };
-
-        vec2 vertices[4] = vec2[](
-            vec2(-1.0, -1.0),
-            vec2(-1.0, 1.0),
-            vec2(1.0, -1.0),
-            vec2(1.0, 1.0)
-        );
-
-        layout (location = 0) in vec4 in_rotation;
-        layout (location = 1) in float in_distance;
-        layout (location = 2) in float in_texture;
-
-        out vec3 v_texcoord;
-
-        void main() {
-            vec3 vertex = qtransform(in_rotation, vec3(vertices[gl_VertexID] * 100.0, in_distance * 100.0));
-            gl_Position = mvp * vec4(camera_position.xyz + vertex, 1.0);
-            gl_Position.w = gl_Position.z;
-            v_texcoord = vec3(vertices[gl_VertexID] * 0.5 + 0.5, in_texture);
-        }
-    ''',
-    fragment_shader='''
-        #version 330 core
-
-        uniform sampler2DArray Texture;
-
-        in vec3 v_texcoord;
-
-        layout (location = 0) out vec4 out_color;
-
-        void main() {
-            out_color = texture(Texture, v_texcoord);
-        }
-    ''',
-    layout=[
-        {
-            'name': 'Common',
-            'binding': 0,
-        },
-        {
-            'name': 'Texture',
-            'binding': 0,
-        },
-    ],
-    resources=[
-        {
-            'type': 'uniform_buffer',
-            'binding': 0,
-            'buffer': uniform_buffer,
-        },
-        {
-            'type': 'sampler',
-            'binding': 0,
-            'image': background_sprites,
-        },
-    ],
-    blend={
-        'enable': True,
-        'src_color': 'src_alpha',
-        'dst_color': 'one_minus_src_alpha',
-    },
-    framebuffer=[image],
-    topology='triangle_strip',
-    vertex_buffers=zengl.bind(background_instance_buffer, '4f 1f 1f /i', 0, 1, 2),
-    vertex_count=4,
-)
-
-smoke_vertex_buffer = ctx.buffer(assets['Smoke'])
-smoke_instance_buffer = ctx.buffer(size=1024 * 1024)
-smoke_instances = bytearray()
-
-smoke_pipeline = ctx.pipeline(
-    vertex_shader='''
-        #version 330 core
-
-        vec3 qtransform(vec4 q, vec3 v) {
-            return v + 2.0 * cross(cross(v, q.xyz) - q.w * v, q.xyz);
-        }
-
-        layout (std140) uniform Common {
-            mat4 mvp;
-        };
-
-        layout (location = 0) in vec3 in_vertex;
-        layout (location = 1) in vec3 in_normal;
-
-        layout (location = 2) in vec3 in_position;
-        layout (location = 3) in vec4 in_rotation;
-        layout (location = 4) in float in_scale;
-
-        out vec3 v_vertex;
-        out vec3 v_normal;
-
-        void main() {
-            v_vertex = in_position + qtransform(in_rotation, in_vertex * in_scale);
-            v_normal = qtransform(in_rotation, in_normal);
-            gl_Position = mvp * vec4(v_vertex, 1.0);
-        }
-    ''',
-    fragment_shader='''
-        #version 330 core
-
-        in vec3 v_vertex;
-        in vec3 v_normal;
-
-        layout (location = 0) out vec4 out_color;
-
-        void main() {
-            vec3 light = vec3(4.0, 3.0, 10.0);
-            float lum = dot(normalize(light), normalize(v_normal)) * 0.3 + 0.7;
-            out_color = vec4(lum, lum, lum, 1.0);
-        }
-    ''',
-    layout=[
-        {
-            'name': 'Common',
-            'binding': 0,
-        },
-    ],
-    resources=[
-        {
-            'type': 'uniform_buffer',
-            'binding': 0,
-            'buffer': uniform_buffer,
-        },
-    ],
-    framebuffer=[image, depth],
-    topology='triangles',
-    cull_face='back',
-    vertex_buffers=[
-        *zengl.bind(smoke_vertex_buffer, '3f 3f', 0, 1),
-        *zengl.bind(smoke_instance_buffer, '3f 4f 1f /i', 2, 3, 4),
-    ],
-    vertex_count=smoke_vertex_buffer.size // zengl.calcsize('3f 3f'),
-)
-
-beam_vertex_buffer = ctx.buffer(assets['Beam'])
-beam_instance_buffer = ctx.buffer(size=1024 * 1024)
-beam_instances = bytearray()
-
-beam_pipeline = ctx.pipeline(
-    vertex_shader='''
-        #version 330 core
-
-        vec3 qtransform(vec4 q, vec3 v) {
-            return v + 2.0 * cross(cross(v, q.xyz) - q.w * v, q.xyz);
-        }
-
-        layout (std140) uniform Common {
-            mat4 mvp;
-        };
-
-        layout (location = 0) in vec3 in_vertex;
-        layout (location = 1) in int in_material;
-
-        layout (location = 2) in vec3 in_position;
-        layout (location = 3) in vec4 in_rotation;
-        layout (location = 4) in float in_scale;
-
-        flat out int v_material;
-
-        void main() {
-            v_material = in_material;
-            vec3 vertex = in_position + qtransform(in_rotation, in_vertex * in_scale);
-            gl_Position = mvp * vec4(vertex, 1.0);
-        }
-    ''',
-    fragment_shader='''
-        #version 330 core
-
-        flat in int v_material;
-
-        layout (location = 0) out vec4 out_color;
-
-        void main() {
-            if (v_material == 1) {
-                out_color = vec4(1.0, 0.0, 1.0, 1.0);
-            } else {
-                out_color = vec4(1.0, 1.0, 1.0, 1.0);
-            }
-        }
-    ''',
-    layout=[
-        {
-            'name': 'Common',
-            'binding': 0,
-        },
-    ],
-    resources=[
-        {
-            'type': 'uniform_buffer',
-            'binding': 0,
-            'buffer': uniform_buffer,
-        },
-    ],
-    framebuffer=[image, depth],
-    topology='triangles',
-    cull_face='back',
-    vertex_buffers=[
-        *zengl.bind(beam_vertex_buffer, '3f 1i', 0, 1),
-        *zengl.bind(beam_instance_buffer, '3f 4f 1f /i', 2, 3, 4),
-    ],
-    vertex_count=beam_vertex_buffer.size // zengl.calcsize('3f 1i'),
-)
-
-
-def make_object_pipeline(vertex_index, vertex_count):
+def make_object_pipeline(vertex_buffer, vertex_index, vertex_count):
     return ctx.pipeline(
         vertex_shader='''
             #version 330 core
@@ -461,30 +224,305 @@ def make_object_pipeline(vertex_index, vertex_count):
         framebuffer=[image, depth],
         topology='triangles',
         cull_face='back',
-        vertex_buffers=zengl.bind(object_vertex_buffer, '3f 3f 3f', 0, 1, 2),
+        vertex_buffers=zengl.bind(vertex_buffer, '3f 3f 3f', 0, 1, 2),
         first_vertex=vertex_index,
         vertex_count=vertex_count,
     )
 
 
-object_pipeline = {
-    name: make_object_pipeline(vertex_offset, vertex_count)
-    for name, vertex_offset, vertex_count in assets['Objects']
-}
+class ObjectRenderer:
+    def __init__(self):
+        self.vertex_buffer = ctx.buffer(assets['VertexData'])
+        self.pipelines = {
+            name: make_object_pipeline(self.vertex_buffer, vertex_offset, vertex_count)
+            for name, vertex_offset, vertex_count in assets['Objects']
+        }
+
+    def render(self, name, position, rotation, scale):
+        pipeline = self.pipelines[name]
+        pipeline.uniforms['position'][:] = struct.pack('3f', *position)
+        pipeline.uniforms['rotation'][:] = struct.pack('4f', *glm.quat_to_vec4(rotation))
+        pipeline.uniforms['scale'][:] = struct.pack('f', scale)
+        pipeline.render()
 
 
-def render_object(name, position, rotation, scale):
-    if name == 'Smoke':
-        smoke_instances.extend(struct.pack('3f4f1f', *position, *glm.quat_to_vec4(rotation), scale))
-        return
-    if name == 'Beam':
-        beam_instances.extend(struct.pack('3f4f1f', *position, *glm.quat_to_vec4(rotation), scale))
-        return
-    pipeline = object_pipeline[name]
-    pipeline.uniforms['position'][:] = struct.pack('3f', *position)
-    pipeline.uniforms['rotation'][:] = struct.pack('4f', *glm.quat_to_vec4(rotation))
-    pipeline.uniforms['scale'][:] = struct.pack('f', scale)
-    pipeline.render()
+class BackgroundRenderer:
+    def __init__(self):
+        self.instances = bytearray()
+        self.instance = struct.Struct('4f 1f 1f')
+
+        self.sprites = ctx.image((128, 128), 'rgba8unorm', array=7, data=assets['Sprites'])
+        self.instance_buffer = ctx.buffer(size=1024 * 1024)
+
+        self.pipeline = ctx.pipeline(
+            vertex_shader='''
+                #version 330 core
+
+                vec3 qtransform(vec4 q, vec3 v) {
+                    return v + 2.0 * cross(cross(v, q.xyz) - q.w * v, q.xyz);
+                }
+
+                layout (std140) uniform Common {
+                    mat4 mvp;
+                    vec4 camera_position;
+                };
+
+                vec2 vertices[4] = vec2[](
+                    vec2(-1.0, -1.0),
+                    vec2(-1.0, 1.0),
+                    vec2(1.0, -1.0),
+                    vec2(1.0, 1.0)
+                );
+
+                layout (location = 0) in vec4 in_rotation;
+                layout (location = 1) in float in_distance;
+                layout (location = 2) in float in_texture;
+
+                out vec3 v_texcoord;
+
+                void main() {
+                    vec3 vertex = qtransform(in_rotation, vec3(vertices[gl_VertexID] * 100.0, in_distance * 100.0));
+                    gl_Position = mvp * vec4(camera_position.xyz + vertex, 1.0);
+                    gl_Position.w = gl_Position.z;
+                    v_texcoord = vec3(vertices[gl_VertexID] * 0.5 + 0.5, in_texture);
+                }
+            ''',
+            fragment_shader='''
+                #version 330 core
+
+                uniform sampler2DArray Texture;
+
+                in vec3 v_texcoord;
+
+                layout (location = 0) out vec4 out_color;
+
+                void main() {
+                    out_color = texture(Texture, v_texcoord);
+                }
+            ''',
+            layout=[
+                {
+                    'name': 'Common',
+                    'binding': 0,
+                },
+                {
+                    'name': 'Texture',
+                    'binding': 0,
+                },
+            ],
+            resources=[
+                {
+                    'type': 'uniform_buffer',
+                    'binding': 0,
+                    'buffer': uniform_buffer,
+                },
+                {
+                    'type': 'sampler',
+                    'binding': 0,
+                    'image': self.sprites,
+                },
+            ],
+            blend={
+                'enable': True,
+                'src_color': 'src_alpha',
+                'dst_color': 'one_minus_src_alpha',
+            },
+            framebuffer=[image],
+            topology='triangle_strip',
+            vertex_buffers=zengl.bind(self.instance_buffer, '4f 1f 1f /i', 0, 1, 2),
+            vertex_count=4,
+        )
+
+    def generate(self):
+        for i in range(1000):
+            rotation = random_rotation()
+            self.instances.extend(self.instance.pack(*rotation, random.uniform(150.0, 250.0), 0.0)),
+
+        for i in range(200):
+            rotation = random_rotation()
+            self.instances.extend(self.instance.pack(*rotation, 5.0, 1.0)),
+
+        for i in range(5):
+            rotation = random_rotation()
+            self.instances.extend(self.instance.pack(*rotation, random.gauss(25.0, 5.0), i + 2))
+
+        self.instance_buffer.write(self.instances)
+        self.pipeline.instance_count = len(self.instances) // self.instance.size
+
+    def render(self):
+        self.pipeline.render()
+
+
+class SmokeRenderer:
+    def __init__(self):
+        self.instances = bytearray()
+        self.instance = struct.Struct('3f 4f 1f')
+
+        self.vertex_buffer = ctx.buffer(assets['Smoke'])
+        self.instance_buffer = ctx.buffer(size=1024 * 1024)
+
+        self.pipeline = ctx.pipeline(
+            vertex_shader='''
+                #version 330 core
+
+                vec3 qtransform(vec4 q, vec3 v) {
+                    return v + 2.0 * cross(cross(v, q.xyz) - q.w * v, q.xyz);
+                }
+
+                layout (std140) uniform Common {
+                    mat4 mvp;
+                };
+
+                layout (location = 0) in vec3 in_vertex;
+                layout (location = 1) in vec3 in_normal;
+
+                layout (location = 2) in vec3 in_position;
+                layout (location = 3) in vec4 in_rotation;
+                layout (location = 4) in float in_scale;
+
+                out vec3 v_vertex;
+                out vec3 v_normal;
+
+                void main() {
+                    v_vertex = in_position + qtransform(in_rotation, in_vertex * in_scale);
+                    v_normal = qtransform(in_rotation, in_normal);
+                    gl_Position = mvp * vec4(v_vertex, 1.0);
+                }
+            ''',
+            fragment_shader='''
+                #version 330 core
+
+                in vec3 v_vertex;
+                in vec3 v_normal;
+
+                layout (location = 0) out vec4 out_color;
+
+                void main() {
+                    vec3 light = vec3(4.0, 3.0, 10.0);
+                    float lum = dot(normalize(light), normalize(v_normal)) * 0.3 + 0.7;
+                    out_color = vec4(lum, lum, lum, 1.0);
+                }
+            ''',
+            layout=[
+                {
+                    'name': 'Common',
+                    'binding': 0,
+                },
+            ],
+            resources=[
+                {
+                    'type': 'uniform_buffer',
+                    'binding': 0,
+                    'buffer': uniform_buffer,
+                },
+            ],
+            framebuffer=[image, depth],
+            topology='triangles',
+            cull_face='back',
+            vertex_buffers=[
+                *zengl.bind(self.vertex_buffer, '3f 3f', 0, 1),
+                *zengl.bind(self.instance_buffer, '3f 4f 1f /i', 2, 3, 4),
+            ],
+            vertex_count=self.vertex_buffer.size // zengl.calcsize('3f 3f'),
+        )
+
+    def add(self, position, rotation, scale):
+        self.instances.extend(self.instance.pack(*position, *glm.quat_to_vec4(rotation), scale))
+
+    def render(self):
+        self.instance_buffer.write(self.instances)
+        self.pipeline.instance_count = len(self.instances) // self.instance.size
+        self.pipeline.render()
+        self.instances.clear()
+
+
+class BeamRenderer:
+    def __init__(self):
+        self.instances = bytearray()
+        self.instance = struct.Struct('3f 4f 1f')
+
+        self.vertex_buffer = ctx.buffer(assets['Beam'])
+        self.instance_buffer = ctx.buffer(size=1024 * 1024)
+
+        self.pipeline = ctx.pipeline(
+            vertex_shader='''
+                #version 330 core
+
+                vec3 qtransform(vec4 q, vec3 v) {
+                    return v + 2.0 * cross(cross(v, q.xyz) - q.w * v, q.xyz);
+                }
+
+                layout (std140) uniform Common {
+                    mat4 mvp;
+                };
+
+                layout (location = 0) in vec3 in_vertex;
+                layout (location = 1) in int in_material;
+
+                layout (location = 2) in vec3 in_position;
+                layout (location = 3) in vec4 in_rotation;
+                layout (location = 4) in float in_scale;
+
+                flat out int v_material;
+
+                void main() {
+                    v_material = in_material;
+                    vec3 vertex = in_position + qtransform(in_rotation, in_vertex * in_scale);
+                    gl_Position = mvp * vec4(vertex, 1.0);
+                }
+            ''',
+            fragment_shader='''
+                #version 330 core
+
+                flat in int v_material;
+
+                layout (location = 0) out vec4 out_color;
+
+                void main() {
+                    if (v_material == 1) {
+                        out_color = vec4(1.0, 0.0, 1.0, 1.0);
+                    } else {
+                        out_color = vec4(1.0, 1.0, 1.0, 1.0);
+                    }
+                }
+            ''',
+            layout=[
+                {
+                    'name': 'Common',
+                    'binding': 0,
+                },
+            ],
+            resources=[
+                {
+                    'type': 'uniform_buffer',
+                    'binding': 0,
+                    'buffer': uniform_buffer,
+                },
+            ],
+            framebuffer=[image, depth],
+            topology='triangles',
+            cull_face='back',
+            vertex_buffers=[
+                *zengl.bind(self.vertex_buffer, '3f 1i', 0, 1),
+                *zengl.bind(self.instance_buffer, '3f 4f 1f /i', 2, 3, 4),
+            ],
+            vertex_count=self.vertex_buffer.size // zengl.calcsize('3f 1i'),
+        )
+
+    def add(self, position, rotation, scale):
+        self.instances.extend(self.instance.pack(*position, *glm.quat_to_vec4(rotation), scale))
+
+    def render(self):
+        self.instance_buffer.write(self.instances)
+        self.pipeline.instance_count = len(self.instances) // self.instance.size
+        self.pipeline.render()
+        self.instances.clear()
+
+
+object_renderer = ObjectRenderer()
+background_renderer = BackgroundRenderer()
+smoke_renderer = SmokeRenderer()
+beam_renderer = BeamRenderer()
 
 
 class Beam:
@@ -501,10 +539,10 @@ class Beam:
         self.position += self.velocity
 
     def render(self):
-        render_object('Beam', self.position, self.rotation, 3.0)
+        beam_renderer.add(self.position, self.rotation, 3.0)
 
 
-class Smoke:
+class ShipSmoke:
     def __init__(self, position, velocity):
         self.position = position
         self.velocity = velocity
@@ -520,7 +558,7 @@ class Smoke:
         self.alive = self.counter > 0
 
     def render(self):
-        render_object('Smoke', self.position, self.rotation, self.size)
+        smoke_renderer.add(self.position, self.rotation, self.size)
 
 
 class CollectedCanister:
@@ -539,7 +577,7 @@ class CollectedCanister:
         self.position = self.canister.position * f + self.collector.position * (1.0 - f)
 
     def render(self):
-        render_object('Canister', self.position, self.canister.rotation, 1.0)
+        object_renderer.render('Canister', self.position, self.canister.rotation, 1.0)
 
 
 class SpaceShip:
@@ -566,13 +604,13 @@ class SpaceShip:
                 obj.alive = False
                 world.add(CollectedCanister(self, obj))
 
-        world.add(Smoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
-        world.add(Smoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
+        world.add(ShipSmoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
+        world.add(ShipSmoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
         world.add(Beam(self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
 
     def render(self):
-        render_object(self.space_ship_model, self.position, self.rotation, 1.0)
+        object_renderer.render(self.space_ship_model, self.position, self.rotation, 1.0)
 
     def camera(self):
         eye = self.position - self.forward * 6.0 + self.upward * 2.0
@@ -615,7 +653,7 @@ class Canister:
         self.rotation = glm.angleAxis(0.05, self.axis) * self.rotation
 
     def render(self):
-        render_object('Canister', self.position, self.rotation, 1.0)
+        object_renderer.render('Canister', self.position, self.rotation, 1.0)
 
 
 class SpaceShipControl:
@@ -667,7 +705,7 @@ class SmokeParticle:
     def render(self):
         position = self.position + self.velocity * math.sqrt(self.frame * 10.0) / 60.0
         scale = self.scale + self.frame * 0.01
-        render_object('Smoke', position, self.rotation, scale)
+        smoke_renderer.add(position, self.rotation, scale)
 
 
 class WindParticle:
@@ -687,7 +725,7 @@ class WindParticle:
         self.alive = self.life > 0
 
     def render(self):
-        render_object('Smoke', self.position, self.rotation, self.scale)
+        smoke_renderer.add(self.position, self.rotation, self.scale)
 
 
 class Explosion:
@@ -740,16 +778,14 @@ class Intro:
 
 class Base:
     def __init__(self):
-        self.frame = 0
         self.world = World()
         self.world.add(Wind())
+        background_renderer.generate()
         self.space_ship = 'SpaceShip0'
+        self.frame = 0
 
     def render(self):
         self.frame += 1
-
-        smoke_instances.clear()
-        beam_instances.clear()
 
         self.world.update()
 
@@ -758,10 +794,7 @@ class Base:
         eye.z = max(eye.z, 0.1)
         camera = zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect)
         uniform_buffer.write(struct.pack('64s3f4x', camera, *eye))
-
-        background.instance_count = len(background_instances) // zengl.calcsize('4f 1f 1f')
-        background.render()
-
+        background_renderer.render()
         self.world.render()
 
         for i in range(8):
@@ -772,16 +805,11 @@ class Base:
         if window.key_pressed('KeyF'):
             g.scene = Play(self.space_ship)
 
-        render_object('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
-        render_object(self.space_ship, glm.vec3(0.0, 0.0, 0.6 + math.sin(self.frame / 20.0) * 0.1), rz(math.pi * 0.85), 0.6)
+        object_renderer.render('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
+        object_renderer.render(self.space_ship, glm.vec3(0.0, 0.0, 0.6 + math.sin(self.frame / 20.0) * 0.1), rz(math.pi * 0.85), 0.6)
 
-        smoke_instance_buffer.write(smoke_instances)
-        smoke_pipeline.instance_count = len(smoke_instances) // zengl.calcsize('3f 4f 1f')
-        smoke_pipeline.render()
-
-        beam_instance_buffer.write(beam_instances)
-        beam_pipeline.instance_count = len(beam_instances) // zengl.calcsize('3f 4f 1f')
-        beam_pipeline.render()
+        smoke_renderer.render()
+        beam_renderer.render()
 
 
 class Play:
@@ -789,6 +817,7 @@ class Play:
         self.world = World()
         self.space_ship = SpaceShip(space_ship_model)
         self.controller = SpaceShipControl(self.space_ship)
+        background_renderer.generate()
 
         self.world.add(self.space_ship)
         for _ in range(10):
@@ -797,25 +826,16 @@ class Play:
             self.world.add(Canister())
 
     def render(self):
-        smoke_instances.clear()
-        beam_instances.clear()
-
         self.controller.update()
 
         self.world.update()
         uniform_buffer.write(struct.pack('64s3f4x', self.space_ship.camera(), *self.space_ship.position))
-        background.instance_count = len(background_instances) // zengl.calcsize('4f 1f 1f')
-        background.render()
+        background_renderer.render()
 
         self.world.render()
 
-        smoke_instance_buffer.write(smoke_instances)
-        smoke_pipeline.instance_count = len(smoke_instances) // zengl.calcsize('3f 4f 1f')
-        smoke_pipeline.render()
-
-        beam_instance_buffer.write(beam_instances)
-        beam_pipeline.instance_count = len(beam_instances) // zengl.calcsize('3f 4f 1f')
-        beam_pipeline.render()
+        smoke_renderer.render()
+        beam_renderer.render()
 
 
 class g:
