@@ -49,6 +49,10 @@ The assets are pickled directly from Blender using the Python console.
 
 ![day-2](https://github.com/szabolcsdombi/pyweek-36/assets/11232402/25510a89-b71f-418e-b8a2-e645a1b5fdbc)
 
+## Day 3
+
+![day-3](https://github.com/szabolcsdombi/pyweek-36/assets/11232402/2e12915d-b7ca-4d9f-a498-630e6db947d6)
+
 ## TODO, TBD, Game Elements
 
 - [x] ship upgrades
