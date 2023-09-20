@@ -115,7 +115,95 @@ with open('assets/assets.pickle', 'rb') as f:
 
 vertex_buffer = ctx.buffer(assets['VertexData'])
 
-uniform_buffer = ctx.buffer(size=64)
+uniform_buffer = ctx.buffer(size=96)
+
+textures = pickle.loads(open('assets/textures.pickle', 'rb').read())
+sky = ctx.image((128, 128), 'rgba8unorm', array=7, data=textures['Sprites'])
+
+background_vertex_buffer = ctx.buffer(size=1024 * 1024)
+
+background = ctx.pipeline(
+    vertex_shader='''
+        #version 330 core
+
+        vec3 qtransform(vec4 q, vec3 v) {
+            return v + 2.0 * cross(cross(v, q.xyz) - q.w * v, q.xyz);
+        }
+
+        layout (std140) uniform Common {
+            mat4 mvp;
+            vec4 camera_position;
+        };
+
+        vec2 vertices[4] = vec2[](
+            vec2(-1.0, -1.0),
+            vec2(-1.0, 1.0),
+            vec2(1.0, -1.0),
+            vec2(1.0, 1.0)
+        );
+
+        layout (location = 0) in vec4 in_rotation;
+        layout (location = 1) in float in_distance;
+        layout (location = 2) in float in_texture;
+
+        out vec3 v_texcoord;
+
+        void main() {
+            vec3 vertex = qtransform(in_rotation, vec3(vertices[gl_VertexID] * 100.0, in_distance * 100.0));
+            gl_Position = mvp * vec4(camera_position.xyz + vertex, 1.0);
+            gl_Position.w = gl_Position.z;
+            v_texcoord = vec3(vertices[gl_VertexID] * 0.5 + 0.5, in_texture);
+        }
+    ''',
+    fragment_shader='''
+        #version 330 core
+
+        uniform sampler2DArray Texture;
+
+        in vec3 v_texcoord;
+
+        layout (location = 0) out vec4 out_color;
+
+        void main() {
+            out_color = texture(Texture, v_texcoord);
+            if (v_texcoord.z == 1.0) out_color.a *= 0.25;
+            if (out_color.a < 0.05) {
+                discard;
+            }
+        }
+    ''',
+    layout=[
+        {
+            'name': 'Common',
+            'binding': 0,
+        },
+        {
+            'name': 'Texture',
+            'binding': 0,
+        },
+    ],
+    resources=[
+        {
+            'type': 'uniform_buffer',
+            'binding': 0,
+            'buffer': uniform_buffer,
+        },
+        {
+            'type': 'sampler',
+            'binding': 0,
+            'image': sky,
+        },
+    ],
+    blend={
+        'enable': True,
+        'src_color': 'src_alpha',
+        'dst_color': 'one_minus_src_alpha',
+    },
+    framebuffer=[image],
+    topology='triangle_strip',
+    vertex_buffers=zengl.bind(background_vertex_buffer, '4f 1f 1f /i', 0, 1, 2),
+    vertex_count=4,
+)
 
 
 def make_pipeline(vertex_index, vertex_count):
@@ -484,6 +572,28 @@ hangar = {
 }
 
 
+temp = bytearray()
+count = 0
+
+for i in range(1000):
+    rotation = random_rotation()
+    temp.extend(struct.pack('4f1f1f', *rotation, random.uniform(150.0, 250.0), 0.0)),
+    count += 1
+
+for i in range(200):
+    rotation = random_rotation()
+    temp.extend(struct.pack('4f1f1f', *rotation, 5.0, 1.0)),
+    count += 1
+
+for i in range(5):
+    rotation = random_rotation()
+    temp.extend(struct.pack('4f1f1f', *rotation, random.gauss(25.0, 5.0), i + 2))
+    count += 1
+
+background_vertex_buffer.write(temp)
+background.instance_count = count
+
+
 def render():
     window.update()
     ctx.new_frame()
@@ -494,10 +604,18 @@ def render():
         controller.update()
 
         world.update()
-        uniform_buffer.write(space_ship.camera())
+        uniform_buffer.write(struct.pack('64s3f4x', space_ship.camera(), *space_ship.position))
+        background.render()
+
         world.render()
 
     else:
+        eye = glm.vec3(0.63, 3.2, 1.36)
+        eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
+        camera = zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect)
+        uniform_buffer.write(struct.pack('64s3f4x', camera, *eye))
+        background.render()
+
         hangar['explosion'].update()
         hangar['explosion'].render()
 
@@ -514,9 +632,6 @@ def render():
             space_ship.space_ship_model = hangar['space_ship']
             hangar['playing'] = True
 
-        eye = glm.vec3(0.63, 3.2, 1.36)
-        eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
-        uniform_buffer.write(zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect))
         render_object('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
         render_object(hangar['space_ship'], glm.vec3(0.0, 0.0, 0.6 + math.sin(hangar['time'] * 3.0) * 0.1), rz(math.pi * 0.85), 0.6)
 
