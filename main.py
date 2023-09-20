@@ -117,8 +117,7 @@ vertex_buffer = ctx.buffer(assets['VertexData'])
 
 uniform_buffer = ctx.buffer(size=96)
 
-textures = pickle.loads(open('assets/textures.pickle', 'rb').read())
-sky = ctx.image((128, 128), 'rgba8unorm', array=7, data=textures['Sprites'])
+sky = ctx.image((128, 128), 'rgba8unorm', array=7, data=assets['Sprites'])
 
 background_vertex_buffer = ctx.buffer(size=1024 * 1024)
 
@@ -166,10 +165,6 @@ background = ctx.pipeline(
 
         void main() {
             out_color = texture(Texture, v_texcoord);
-            if (v_texcoord.z == 1.0) out_color.a *= 0.25;
-            if (out_color.a < 0.05) {
-                discard;
-            }
         }
     ''',
     layout=[
