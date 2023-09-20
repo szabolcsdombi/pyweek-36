@@ -18,6 +18,9 @@ def export_image(obj, alpha):
 
 
 def export_mesh(obj, ref):
+    if ref is None:
+        ref = obj
+
     mesh = obj.data
     mesh.calc_loop_triangles()
     mesh.calc_normals_split()
@@ -37,8 +40,27 @@ def export_mesh(obj, ref):
     return buf
 
 
+def export_particle_mesh(obj, materials):
+    mesh = obj.data
+    mesh.calc_loop_triangles()
+    mesh.calc_normals_split()
+
+    buf = bytearray()
+    for triangle_loop in mesh.loop_triangles:
+        for loop_index in triangle_loop.loops:
+            loop = mesh.loops[loop_index]
+            x, y, z = mesh.vertices[loop.vertex_index].co
+            nx, ny, nz = loop.normal
+            if materials:
+                buf.extend(struct.pack('3f1i', x, y, z, triangle_loop.material_index))
+            else:
+                buf.extend(struct.pack('3f3f', x, y, z, nx, ny, nz))
+
+    return buf
+
+
 def export_object(name, obj, ref=None):
-    buf = export_mesh(obj, ref or obj)
+    buf = export_mesh(obj, ref)
     vertex_offset = len(vertex_data) // Vertex.size
     vertex_count = len(buf) // Vertex.size
     objects.append((name, vertex_offset, vertex_count))
@@ -64,7 +86,6 @@ export_object('SpaceShip5', bpy.data.objects['craft_cargoB'])
 export_object('SpaceShip6', bpy.data.objects['craft_miner'])
 export_object('SpaceShip7', bpy.data.objects['craft_racer'])
 export_object('Canister', bpy.data.objects['canister'])
-export_object('Smoke', bpy.data.objects['smoke'])
 
 export_collection('Base', bpy.data.collections['base'], bpy.data.objects['platform_large'])
 export_collection('Rocket1', bpy.data.collections['rocket-1'], bpy.data.objects['rocket_sidesA'])
@@ -78,9 +99,11 @@ export_image(bpy.data.objects['planet-3'], 1.0)
 export_image(bpy.data.objects['planet-4'], 1.0)
 export_image(bpy.data.objects['planet-5'], 1.0)
 
-
 open(bpy.path.abspath('//assets.pickle'), 'wb').write(pickle.dumps({
     'VertexData': bytes(vertex_data),
     'Objects': objects,
     'Sprites': bytes(sprites),
+    'Smoke': export_particle_mesh(bpy.data.objects['smoke'], False),
+    'Debree': export_particle_mesh(bpy.data.objects['debree'], False),
+    'Beam': export_particle_mesh(bpy.data.objects['beam'], True),
 }))
