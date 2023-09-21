@@ -1,3 +1,4 @@
+import io
 import math
 import pickle
 import random
@@ -107,6 +108,28 @@ class Window:
         return self._wnd.update()
 
 
+class Speaker:
+    def __init__(self):
+        self.intro = pyglet.media.load('Intro', io.BytesIO(assets['Audio']['Intro']))
+        self.hover = pyglet.media.load('Engine', io.BytesIO(assets['Audio']['Engine']))
+        self.beam = pyglet.media.StaticSource(pyglet.media.load('Beam', io.BytesIO(assets['Audio']['Beam'])))
+        self.explosion = pyglet.media.StaticSource(pyglet.media.load('Explosion', io.BytesIO(assets['Audio']['Explosion'])))
+        self.canister = pyglet.media.StaticSource(pyglet.media.load('Canister', io.BytesIO(assets['Audio']['Canister'])))
+        self.player = pyglet.media.Player()
+
+    def reset(self):
+        self.player.pause()
+        self.player = pyglet.media.Player()
+
+    def queue_intro(self):
+        self.reset()
+        self.player.queue(self.intro)
+
+    def queue_hover(self):
+        self.reset()
+        self.player.queue(self.hover)
+
+
 def rotate(forward, upward, yaw, pitch, roll):
     upward = glm.angleAxis(roll, forward) * upward
     forward = glm.angleAxis(-yaw, upward) * forward
@@ -156,7 +179,25 @@ def smoothstep(edge0, edge1, x):
 with open('assets/assets.pickle', 'rb') as f:
     assets = pickle.load(f)
 
+assets['Audio'] = {}
+
+with open('assets/intro.wav', 'rb') as f:
+    assets['Audio']['Intro'] = f.read()
+
+with open('assets/spaceEngine_002.wav', 'rb') as f:
+    assets['Audio']['Engine'] = f.read()
+
+with open('assets/laserSmall_002.wav', 'rb') as f:
+    assets['Audio']['Beam'] = f.read()
+
+with open('assets/explosionCrunch_001.wav', 'rb') as f:
+    assets['Audio']['Explosion'] = f.read()
+
+with open('assets/forceField_003.wav', 'rb') as f:
+    assets['Audio']['Canister'] = f.read()
+
 window = Window()
+speaker = Speaker()
 
 ctx = zengl.context(window.loader)
 
@@ -749,12 +790,14 @@ class SpaceShip:
         self.rotation = quat_look_at(temp_forward, temp_upward)
 
         if self.health < 0:
-            self.alive = False
             world.add(ExplosionChain(self.position, self.forward * 0.2))
+            speaker.explosion.play()
+            self.alive = False
 
         for obj in world.nearby(self.position, 4.0):
             if type(obj) is Canister:
                 world.add(CollectedCanister(self, obj))
+                speaker.canister.play()
                 self.canisters_collected += 1
                 obj.alive = False
 
@@ -768,6 +811,7 @@ class SpaceShip:
 
         if self.shooting:
             world.add(Beam(self, self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
+            speaker.beam.play()
 
     def render(self):
         object_renderer.render(self.space_ship_model, self.position, self.rotation, 1.0)
@@ -951,6 +995,7 @@ class Intro:
         self.frame = 0
         background_renderer.generate(planets=False)
         background_renderer.add_home_planet(ry(0.225), 15.0)
+        speaker.queue_intro()
         self.view = glm.vec3(1.0, 0.0, 0.0)
 
     def render(self):
@@ -979,10 +1024,13 @@ class Intro:
             (2000, ''),
         ]
 
+        if self.frame == 30:
+            speaker.player.play()
+
         show = [text for when, text in lines if self.frame > when]
 
         for i, text in enumerate(show):
-            text_renderer.line(100, 100 - (i - len(show)) * 30, text)
+            text_renderer.line(100, 150 - (i - len(show)) * 30, text)
 
         if self.frame > 2000:
             text_renderer.line(window.size[0] / 2 - 180, 100, 'press [SPACE] to continue')
@@ -1000,6 +1048,8 @@ class Base:
         ]
         self.world = World()
         self.world.add(Wind())
+        speaker.queue_hover()
+        speaker.player.play()
         background_renderer.generate()
         self.space_ship = self.ships[0]
         self.view = (0.0, 0.0)
@@ -1046,6 +1096,7 @@ class Play:
         self.space_ship = SpaceShip(space_ship_model)
         self.controller = SpaceShipControl(self.space_ship)
         background_renderer.generate()
+        speaker.reset()
 
         self.world.add(self.space_ship)
         for _ in range(10):
