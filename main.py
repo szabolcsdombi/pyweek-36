@@ -11,13 +11,19 @@ pyglet.options['shadow_window'] = False
 pyglet.options['debug_gl'] = False
 
 KEYS = {
-    1: 'Mouse1',
-    2: 'Mouse3',
-    4: 'Mouse2',
+    pyglet.window.key.A: 'left',
+    pyglet.window.key.D: 'right',
+    pyglet.window.key.W: 'up',
+    pyglet.window.key.S: 'down',
+    pyglet.window.key.LEFT: 'left',
+    pyglet.window.key.RIGHT: 'right',
+    pyglet.window.key.UP: 'up',
+    pyglet.window.key.DOWN: 'down',
+    pyglet.window.key.Q: 'turn_left',
+    pyglet.window.key.E: 'turn_right',
+    pyglet.window.key.SPACE: 'space',
+    1: 'shoot',
 }
-
-for c in '0123456789abcdefghijklmnopqrstuvwxyz':
-    KEYS[ord(c)] = 'Key' + c.upper()
 
 
 class PygletWindow(pyglet.window.Window):
@@ -35,6 +41,7 @@ class PygletWindow(pyglet.window.Window):
             samples=0,
         )
         super().__init__(fullscreen=True, config=config, vsync=True)
+        self.set_exclusive_mouse(True)
 
     def on_resize(self, width, height):
         pass
@@ -51,20 +58,18 @@ class PygletWindow(pyglet.window.Window):
             self.keys.discard(key)
 
     def on_mouse_press(self, x, y, button, modifiers):
-        self.mouse = x, y
         if key := KEYS.get(button):
             self.keys.add(key)
 
     def on_mouse_release(self, x, y, button, modifiers):
-        self.mouse = x, y
         if key := KEYS.get(button):
             self.keys.discard(key)
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        self.mouse = x, y
+        self.mouse = (self.mouse[0] + dx, self.mouse[1] + dy)
 
     def on_mouse_motion(self, x, y, dx, dy):
-        self.mouse = x, y
+        self.mouse = (self.mouse[0] + dx, self.mouse[1] + dy)
 
     def on_close(self):
         self.alive = False
@@ -72,6 +77,7 @@ class PygletWindow(pyglet.window.Window):
     def update(self):
         self.prev_keys = self.keys
         self.keys = self.keys.copy()
+        self.mouse = (0, 0)
         self.flip()
         self.dispatch_events()
         return self.alive
@@ -680,9 +686,11 @@ class SpaceShip:
         self.user_input = glm.vec3(0.0, 0.0, 0.0)
         self.yaw_pitch_roll = glm.vec3(0.0, 0.0, 0.0)
         self.rotation = glm.quat(1.0, 0.0, 0.0, 0.0)
+        self.shooting = False
         self.alive = True
 
     def update(self, world):
+        self.user_input = glm.clamp(self.user_input, glm.vec3(-1.0, -1.0, -1.0), glm.vec3(1.0, 1.0, 1.0))
         yaw, pitch, roll = self.yaw_pitch_roll
         self.forward, self.upward = rotate(self.forward, self.upward, yaw * 0.5, pitch * 0.5, roll * 0.5)
         temp_forward, temp_upward = rotate(self.forward, self.upward, yaw * 2.0, pitch * 2.0, roll * 2.0)
@@ -698,7 +706,8 @@ class SpaceShip:
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
-        world.add(Beam(self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
+        if self.shooting:
+            world.add(Beam(self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
 
     def render(self):
         object_renderer.render(self.space_ship_model, self.position, self.rotation, 1.0)
@@ -752,10 +761,13 @@ class SpaceShipControl:
         self.space_ship = space_ship
 
     def update(self):
-        yaw = -1.0 if window.key_down('KeyA') else 1.0 if window.key_down('KeyD') else 0.0
-        pitch = -1.0 if window.key_down('KeyW') else 1.0 if window.key_down('KeyS') else 0.0
-        roll = -1.0 if window.key_down('KeyQ') else 1.0 if window.key_down('KeyE') else 0.0
+        yaw = -1.0 if window.key_down('left') else 1.0 if window.key_down('right') else 0.0
+        pitch = -1.0 if window.key_down('up') else 1.0 if window.key_down('down') else 0.0
+        roll = -1.0 if window.key_down('turn_left') else 1.0 if window.key_down('turn_right') else 0.0
+        yaw += window.mouse[0] / 50.0
+        pitch += window.mouse[1] / 50.0
         self.space_ship.user_input = glm.vec3(yaw, pitch, roll)
+        self.space_ship.shooting = window.key_down('shoot')
 
 
 class World:
@@ -869,31 +881,41 @@ class Intro:
 
 class Base:
     def __init__(self):
+        self.ships = [
+            'SpaceShip0', 'SpaceShip1', 'SpaceShip2', 'SpaceShip3',
+            'SpaceShip4', 'SpaceShip5', 'SpaceShip6', 'SpaceShip7',
+        ]
         self.world = World()
         self.world.add(Wind())
         background_renderer.generate()
-        self.space_ship = 'SpaceShip0'
+        self.space_ship = self.ships[0]
+        self.view = (0.0, 0.0)
         self.frame = 0
 
     def render(self):
+        self.view = (self.view[0] + window.mouse[0] * 0.001, self.view[1] + window.mouse[1] * 0.001)
+        self.view = min(max(self.view[0], -1.0), 1.0), min(max(self.view[1], -0.5), 0.5)
         self.frame += 1
 
         self.world.update()
 
         eye = glm.vec3(0.63, 3.2, 1.36)
-        eye = rz((window.mouse[0] - window.size[0] / 2.0) * 0.001) * rx((window.mouse[1] - window.size[1] / 2.0) * 0.001) * eye
+        eye = rz(self.view[0]) * rx(self.view[1]) * eye
         eye.z = max(eye.z, 0.1)
         camera = zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect)
         uniform_buffer.write(struct.pack('64s3f4x', camera, *eye))
         background_renderer.render()
         self.world.render()
 
-        for i in range(8):
-            if window.key_pressed(f'Key{i + 1}'):
-                self.space_ship = f'SpaceShip{i}'
-                self.world.add(Explosion((0.0, 0.0, 0.6)))
+        if window.key_pressed('left'):
+            self.space_ship = self.ships[(self.ships.index(self.space_ship) - 1) % len(self.ships)]
+            self.world.add(Explosion((0.0, 0.0, 0.6)))
 
-        if window.key_pressed('KeyF'):
+        if window.key_pressed('right'):
+            self.space_ship = self.ships[(self.ships.index(self.space_ship) + 1) % len(self.ships)]
+            self.world.add(Explosion((0.0, 0.0, 0.6)))
+
+        if window.key_pressed('space'):
             g.scene = Play(self.space_ship)
 
         object_renderer.render('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
