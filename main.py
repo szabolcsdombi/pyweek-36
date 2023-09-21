@@ -737,6 +737,7 @@ class SpaceShip:
         self.user_input = glm.vec3(0.0, 0.0, 0.0)
         self.yaw_pitch_roll = glm.vec3(0.0, 0.0, 0.0)
         self.rotation = glm.quat(1.0, 0.0, 0.0, 0.0)
+        self.canisters_collected = 0
         self.shooting = False
         self.health = 10
         self.alive = True
@@ -756,8 +757,9 @@ class SpaceShip:
 
         for obj in world.nearby(self.position, 4.0):
             if type(obj) is Canister:
-                obj.alive = False
                 world.add(CollectedCanister(self, obj))
+                self.canisters_collected += 1
+                obj.alive = False
 
             if type(obj) is Beam:
                 if obj.owner is not self:
@@ -1066,6 +1068,11 @@ class Play:
 
         smoke_renderer.render()
         beam_renderer.render()
+
+        text_renderer.line(window.size[0] - 250, window.size[1] - 50, f'Score: {self.space_ship.canisters_collected}')
+        text_renderer.line(window.size[0] - 250, window.size[1] - 80, f'Canisters: {sum(1 for x in self.world.game_objects if type(x) is Canister)}')
+        text_renderer.line(window.size[0] - 250, window.size[1] - 110, f'Rivals: {sum(1 for x in self.world.game_objects if type(x) is WanderingShip)}')
+        text_renderer.render()
 
 
 class g:
