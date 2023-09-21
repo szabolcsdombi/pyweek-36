@@ -145,6 +145,9 @@ def rz(angle):
 with open('assets/assets.pickle', 'rb') as f:
     assets = pickle.load(f)
 
+with open('assets/font.pickle', 'rb') as f:
+    assets['Font'] = pickle.load(f)['Font']
+
 window = Window()
 
 ctx = zengl.context(window.loader)
@@ -519,10 +522,98 @@ class BeamRenderer:
         self.instances.clear()
 
 
+class TextRenderer:
+    def __init__(self):
+        self.instances = bytearray()
+        self.instance = struct.Struct('3f')
+
+        self.font_texture = ctx.image((32, 32), 'rgba8unorm', array=95, data=assets['Font'])
+        self.instance_buffer = ctx.buffer(size=1024 * 1024)
+
+        self.pipeline = ctx.pipeline(
+            vertex_shader='''
+                #version 330 core
+
+                #include "screen_size"
+
+                vec2 vertices[4] = vec2[](
+                    vec2(0.0, 0.0),
+                    vec2(0.0, 1.0),
+                    vec2(1.0, 0.0),
+                    vec2(1.0, 1.0)
+                );
+
+                layout (location = 0) in vec3 in_attributes;
+
+                out vec3 v_texcoord;
+
+                void main() {
+                    vec2 position = in_attributes.xy;
+                    float texture = in_attributes.z;
+                    vec2 vertex = position + vertices[gl_VertexID] * 32.0;
+                    gl_Position = vec4(vertex / screen_size * 2.0 - 1.0, 0.0, 1.0);
+                    v_texcoord = vec3(vertices[gl_VertexID], texture);
+                }
+            ''',
+            fragment_shader='''
+                #version 330 core
+
+                in vec3 v_texcoord;
+
+                uniform sampler2DArray Texture;
+
+                layout (location = 0) out vec4 out_color;
+
+                void main() {
+                    out_color = texture(Texture, v_texcoord);
+                }
+            ''',
+            includes={
+                'screen_size': f'const vec2 screen_size = vec2({float(window.size[0])}, {float(window.size[1])});',
+            },
+            layout=[
+                {
+                    'name': 'Texture',
+                    'binding': 0,
+                },
+            ],
+            resources=[
+                {
+                    'type': 'sampler',
+                    'binding': 0,
+                    'image': self.font_texture,
+                    'wrap_x': 'clamp_to_edge',
+                    'wrap_y': 'clamp_to_edge',
+                    'min_filter': 'nearest',
+                    'mag_filter': 'nearest',
+                },
+            ],
+            blend={
+                'enable': True,
+                'src_color': 'src_alpha',
+                'dst_color': 'one_minus_src_alpha',
+            },
+            framebuffer=[image],
+            topology='triangle_strip',
+            vertex_buffers=zengl.bind(self.instance_buffer, '3f /i', 0),
+            vertex_count=4,
+        )
+
+    def line(self, x, y, text):
+        for i in range(len(text)):
+            self.instances.extend(self.instance.pack(x + i * 18.0, y, ord(text[i]) - 32))
+
+    def render(self):
+        self.instance_buffer.write(self.instances)
+        self.pipeline.instance_count = len(self.instances) // self.instance.size
+        self.pipeline.render()
+        self.instances.clear()
+
 object_renderer = ObjectRenderer()
 background_renderer = BackgroundRenderer()
 smoke_renderer = SmokeRenderer()
 beam_renderer = BeamRenderer()
+text_renderer = TextRenderer()
 
 
 class Beam:
@@ -772,8 +863,8 @@ class Intro:
         if self.countdown == 0:
             g.scene = Base()
 
-        image.clear()
-        image.blit()
+        text_renderer.line(100, 100, 'Hello World!')
+        text_renderer.render()
 
 
 class Base:
