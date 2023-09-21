@@ -167,7 +167,16 @@ image = ctx.image(window.size, 'rgba8unorm', samples=4)
 depth = ctx.image(window.size, 'depth24plus', samples=4)
 image.clear_value = (0.0, 0.0, 0.0, 1.0)
 
-uniform_buffer = ctx.buffer(size=96)
+uniform_buffer = ctx.buffer(size=128)
+
+
+def set_camera(eye, target, upward):
+    forward = glm.normalize(target - eye)
+    sideways = glm.normalize(glm.cross(forward, upward))
+    upward = glm.normalize(glm.cross(sideways, forward))
+    light = glm.normalize(forward * 0.1 + sideways * 2.0 + upward * 10.0)
+    camera = zengl.camera(eye, target, upward, fov=60.0, aspect=window.aspect)
+    uniform_buffer.write(struct.pack('64s3f4x3f4x', camera, *eye, *light))
 
 
 def make_object_pipeline(vertex_buffer, vertex_index, vertex_count):
@@ -181,6 +190,8 @@ def make_object_pipeline(vertex_buffer, vertex_index, vertex_count):
 
             layout (std140) uniform Common {
                 mat4 mvp;
+                vec4 camera_position;
+                vec4 light_direction;
             };
 
             uniform vec3 position;
@@ -205,6 +216,12 @@ def make_object_pipeline(vertex_buffer, vertex_index, vertex_count):
         fragment_shader='''
             #version 330 core
 
+            layout (std140) uniform Common {
+                mat4 mvp;
+                vec4 camera_position;
+                vec4 light_direction;
+            };
+
             in vec3 v_vertex;
             in vec3 v_normal;
             in vec3 v_color;
@@ -212,8 +229,7 @@ def make_object_pipeline(vertex_buffer, vertex_index, vertex_count):
             layout (location = 0) out vec4 out_color;
 
             void main() {
-                vec3 light = vec3(4.0, 3.0, 10.0);
-                float lum = dot(normalize(light), normalize(v_normal)) * 0.3 + 0.7;
+                float lum = dot(light_direction.xyz, normalize(v_normal)) * 0.3 + 0.7;
                 out_color = vec4(pow(v_color * lum, vec3(1.0 / 2.2)), 1.0);
             }
         ''',
@@ -279,6 +295,7 @@ class BackgroundRenderer:
                 layout (std140) uniform Common {
                     mat4 mvp;
                     vec4 camera_position;
+                    vec4 light_direction;
                 };
 
                 vec2 vertices[4] = vec2[](
@@ -404,6 +421,8 @@ class SmokeRenderer:
 
                 layout (std140) uniform Common {
                     mat4 mvp;
+                    vec4 camera_position;
+                    vec4 light_direction;
                 };
 
                 layout (location = 0) in vec3 in_vertex;
@@ -425,14 +444,19 @@ class SmokeRenderer:
             fragment_shader='''
                 #version 330 core
 
+                layout (std140) uniform Common {
+                    mat4 mvp;
+                    vec4 camera_position;
+                    vec4 light_direction;
+                };
+
                 in vec3 v_vertex;
                 in vec3 v_normal;
 
                 layout (location = 0) out vec4 out_color;
 
                 void main() {
-                    vec3 light = vec3(4.0, 3.0, 10.0);
-                    float lum = dot(normalize(light), normalize(v_normal)) * 0.3 + 0.7;
+                    float lum = dot(light_direction.xyz, normalize(v_normal)) * 0.3 + 0.7;
                     out_color = vec4(lum, lum, lum, 1.0);
                 }
             ''',
@@ -487,6 +511,8 @@ class BeamRenderer:
 
                 layout (std140) uniform Common {
                     mat4 mvp;
+                    vec4 camera_position;
+                    vec4 light_direction;
                 };
 
                 layout (location = 0) in vec3 in_vertex;
@@ -739,8 +765,8 @@ class SpaceShip:
     def camera(self):
         eye = self.position - self.forward * 6.0 + self.upward * 2.0
         target = self.position + self.forward * 2.0
-        up = self.upward
-        return zengl.camera(eye, target, up, aspect=window.aspect, fov=60.0)
+        upward = self.upward
+        return eye, target, upward
 
 
 class WanderingShip:
@@ -931,9 +957,7 @@ class Intro:
         if self.frame > 2000:
             text_renderer.line(window.size[0] / 2 - 180, 100, 'press [SPACE] to continue')
 
-        upward = glm.cross(self.view, (0.0, 1.0, 0.0))
-        camera = zengl.camera((0.0, 0.0, 0.0), self.view, upward, fov=60.0, aspect=window.aspect)
-        uniform_buffer.write(struct.pack('64s3f4x', camera, 0.0, 0.0, 0.0))
+        set_camera(glm.vec3(0.0, 0.0, 0.0), self.view, glm.cross(self.view, (0.0, 1.0, 0.0)))
         background_renderer.render()
         text_renderer.render()
 
@@ -961,8 +985,7 @@ class Base:
         eye = glm.vec3(0.63, 3.2, 1.36)
         eye = rz(self.view[0]) * rx(self.view[1]) * eye
         eye.z = max(eye.z, 0.1)
-        camera = zengl.camera(eye, (0.0, 0.0, 0.2), (0.0, 0.0, 1.0), fov=60.0, aspect=window.aspect)
-        uniform_buffer.write(struct.pack('64s3f4x', camera, *eye))
+        set_camera(eye, glm.vec3(0.0, 0.0, 0.2), glm.vec3(0.0, 0.0, 1.0))
         background_renderer.render()
         self.world.render()
 
@@ -1001,7 +1024,8 @@ class Play:
         self.controller.update()
 
         self.world.update()
-        uniform_buffer.write(struct.pack('64s3f4x', self.space_ship.camera(), *self.space_ship.position))
+        eye, target, upward = self.space_ship.camera()
+        set_camera(eye, target, upward)
         background_renderer.render()
 
         self.world.render()
