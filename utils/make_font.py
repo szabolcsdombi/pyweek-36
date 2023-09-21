@@ -14,4 +14,5 @@ for c in range(32, 127):
     draw.text((1, -2), chr(c), '#fff')
     pixels.extend(img.tobytes('raw', 'RGBA', 0, -1))
 
-open('assets/font.pickle', 'wb').write(pickle.dumps({'Font': bytes(pixels)}))
+with open('assets/font.pickle', 'wb') as f:
+    f.write(pickle.dumps({'Font': bytes(pixels)}))

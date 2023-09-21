@@ -197,26 +197,6 @@ def smoothstep(edge0, edge1, x):
 with open('assets/assets.pickle', 'rb') as f:
     assets = pickle.load(f)
 
-assets['Audio'] = {}
-
-with open('assets/intro.wav', 'rb') as f:
-    assets['Audio']['Intro'] = f.read()
-
-with open('assets/beauty-flow.wav', 'rb') as f:
-    assets['Audio']['Music'] = f.read()
-
-with open('assets/spaceEngine_002-cut.wav', 'rb') as f:
-    assets['Audio']['Engine'] = f.read()
-
-with open('assets/laserSmall_003.wav', 'rb') as f:
-    assets['Audio']['Beam'] = f.read()
-
-with open('assets/explosionCrunch_001.wav', 'rb') as f:
-    assets['Audio']['Explosion'] = f.read()
-
-with open('assets/forceField_003.wav', 'rb') as f:
-    assets['Audio']['Canister'] = f.read()
-
 window = Window()
 speaker = Speaker()
 
