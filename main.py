@@ -111,19 +111,41 @@ class Window:
 class Speaker:
     def __init__(self):
         self.intro = pyglet.media.load('Intro', io.BytesIO(assets['Audio']['Intro']), streaming=False)
+        self.music = pyglet.media.load('Music', io.BytesIO(assets['Audio']['Music']), streaming=False)
         self.hover = pyglet.media.load('Engine', io.BytesIO(assets['Audio']['Engine']), streaming=False)
         self.beam = pyglet.media.load('Beam', io.BytesIO(assets['Audio']['Beam']), streaming=False)
         self.explosion = pyglet.media.load('Explosion', io.BytesIO(assets['Audio']['Explosion']), streaming=False)
         self.canister = pyglet.media.load('Canister', io.BytesIO(assets['Audio']['Canister']), streaming=False)
-        self.player = pyglet.media.Player()
+        self.players = []
 
     def reset(self):
-        self.player.pause()
-        self.player = pyglet.media.Player()
+        for player in self.players:
+            player.pause()
+        self.players = []
 
-    def queue_intro(self):
-        self.reset()
-        self.player.queue(self.intro)
+    def update(self):
+        for player in self.players:
+            if player.time > player.source.duration:
+                player.pause()
+        self.players = [player for player in self.players if player.playing]
+
+    def play_intro(self):
+        self.players.append(self.intro.play())
+
+    def play_music(self):
+        self.players.append(self.music.play())
+
+    def play_hover(self):
+        self.players.append(self.hover.play())
+
+    def play_beam(self):
+        self.players.append(self.beam.play())
+
+    def play_explosion(self):
+        self.players.append(self.explosion.play())
+
+    def play_canister(self):
+        self.players.append(self.canister.play())
 
 
 def rotate(forward, upward, yaw, pitch, roll):
@@ -179,6 +201,9 @@ assets['Audio'] = {}
 
 with open('assets/intro.wav', 'rb') as f:
     assets['Audio']['Intro'] = f.read()
+
+with open('assets/beauty-flow.wav', 'rb') as f:
+    assets['Audio']['Music'] = f.read()
 
 with open('assets/spaceEngine_002-cut.wav', 'rb') as f:
     assets['Audio']['Engine'] = f.read()
@@ -789,13 +814,13 @@ class SpaceShip:
 
         if self.health < 0:
             world.add(ExplosionChain(self.position, self.forward * 0.2))
-            speaker.explosion.play()
+            speaker.play_explosion()
             self.alive = False
 
         for obj in world.nearby(self.position, 4.0):
             if type(obj) is Canister:
                 world.add(CollectedCanister(self, obj))
-                speaker.canister.play()
+                speaker.play_canister()
                 self.canisters_collected += 1
                 obj.alive = False
 
@@ -809,7 +834,7 @@ class SpaceShip:
 
         if self.shooting and self.frame % 3 == 0:
             world.add(Beam(self, self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
-            speaker.beam.play()
+            speaker.play_beam()
 
     def render(self):
         object_renderer.render(self.space_ship_model, self.position, self.rotation, 1.0)
@@ -993,7 +1018,6 @@ class Intro:
         self.frame = 0
         background_renderer.generate(planets=False)
         background_renderer.add_home_planet(ry(0.225), 15.0)
-        speaker.queue_intro()
         self.view = glm.vec3(1.0, 0.0, 0.0)
 
     def render(self):
@@ -1019,16 +1043,15 @@ class Intro:
             (1570, 'the dire effects of the energy crisis on his home planet, Noverra.'),
             (1800, ''),
             (1800, 'Join Captain Starbreaker on the "Nebula Harvester" and help save the galaxy.'),
-            (2000, ''),
         ]
 
         if self.frame == 30:
-            speaker.player.play()
+            speaker.play_intro()
 
         show = [text for when, text in lines if self.frame > when]
 
         for i, text in enumerate(show):
-            text_renderer.line(100, 150 - (i - len(show)) * 30, text)
+            text_renderer.line(100, 180 - (i - len(show)) * 30, text)
 
         if self.frame > 2000:
             text_renderer.line(window.size[0] / 2 - 180, 100, 'press [SPACE] to continue')
@@ -1053,8 +1076,9 @@ class Base:
         self.frame = 0
 
     def render(self):
+        speaker.update()
         if self.frame % 100 == 0:
-            speaker.hover.play()
+            speaker.play_hover()
         self.view = (self.view[0] + window.mouse[0] * 0.001, self.view[1] + window.mouse[1] * 0.001)
         self.view = min(max(self.view[0], -1.0), 1.0), min(max(self.view[1], -0.5), 0.5)
         self.frame += 1
@@ -1096,6 +1120,8 @@ class Play:
         self.controller = SpaceShipControl(self.space_ship)
         background_renderer.generate()
         speaker.reset()
+        speaker.play_music()
+        self.frame = 0
 
         self.world.add(self.space_ship)
         for _ in range(10):
@@ -1104,6 +1130,11 @@ class Play:
             self.world.add(Canister())
 
     def render(self):
+        speaker.update()
+        if self.frame % 100 == 0:
+            speaker.play_hover()
+        self.frame += 1
+
         self.controller.update()
 
         self.world.update()
