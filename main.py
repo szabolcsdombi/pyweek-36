@@ -673,7 +673,8 @@ text_renderer = TextRenderer()
 
 
 class Beam:
-    def __init__(self, position, velocity):
+    def __init__(self, owner, position, velocity):
+        self.owner = owner
         self.position = position
         self.velocity = velocity
         self.rotation = quat_look_at(velocity, (0.0, 0.0, 1.0))
@@ -682,7 +683,7 @@ class Beam:
 
     def update(self, world):
         self.life -= 1
-        self.alive = self.life > 0
+        self.alive = self.alive and self.life > 0
         self.position += self.velocity
 
     def render(self):
@@ -737,6 +738,7 @@ class SpaceShip:
         self.yaw_pitch_roll = glm.vec3(0.0, 0.0, 0.0)
         self.rotation = glm.quat(1.0, 0.0, 0.0, 0.0)
         self.shooting = False
+        self.health = 10
         self.alive = True
 
     def update(self, world):
@@ -748,16 +750,25 @@ class SpaceShip:
         self.position += self.forward * 0.3
         self.rotation = quat_look_at(temp_forward, temp_upward)
 
+        if self.health < 0:
+            self.alive = False
+            world.add(ExplosionChain(self.position, self.forward * 0.2))
+
         for obj in world.nearby(self.position, 4.0):
             if type(obj) is Canister:
                 obj.alive = False
                 world.add(CollectedCanister(self, obj))
 
+            if type(obj) is Beam:
+                if obj.owner is not self:
+                    obj.alive = False
+                    self.health -= 1
+
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
         if self.shooting:
-            world.add(Beam(self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
+            world.add(Beam(self, self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
 
     def render(self):
         object_renderer.render(self.space_ship_model, self.position, self.rotation, 1.0)
@@ -786,6 +797,7 @@ class WanderingShip:
         user_input = glm.vec3(random.random(), random.random(), random.random()) * 0.08 - 0.04
         self.space_ship.user_input = glm.clamp(self.space_ship.user_input + user_input, glm.vec3(0.0), glm.vec3(1.0))
         self.space_ship.update(world)
+        self.alive = self.space_ship.alive
         self.position = self.space_ship.position
 
     def render(self):
@@ -882,8 +894,9 @@ class WindParticle:
 
 
 class Explosion:
-    def __init__(self, position):
+    def __init__(self, position, life):
         self.position = position
+        self.life = life
         self.alive = False
 
     def update(self, world):
@@ -891,10 +904,28 @@ class Explosion:
             position = random_rotation() * glm.vec3(0.1, 0.0, 0.0)
             velocity = position * 24.0 + random_rotation() * glm.vec3(0.5, 0.0, 0.0)
             scale = random.gauss(3.0, 0.5)
-            life = random.randint(20, 30)
+            life = random.randint(self.life, self.life + 10)
             world.add(SmokeParticle(self.position + position, velocity, scale, life))
 
         self.alive = False
+
+    def render(self):
+        pass
+
+
+class ExplosionChain:
+    def __init__(self, position, forward):
+        self.position = position
+        self.forward = forward
+        self.countdown = 30
+        self.alive = True
+
+    def update(self, world):
+        if self.countdown % 5 == 0:
+            world.add(Explosion(self.position, 60))
+        self.position += self.forward
+        self.countdown -= 1
+        self.alive = self.countdown > 0
 
     def render(self):
         pass
@@ -991,11 +1022,11 @@ class Base:
 
         if window.key_pressed('left'):
             self.space_ship = self.ships[(self.ships.index(self.space_ship) - 1) % len(self.ships)]
-            self.world.add(Explosion((0.0, 0.0, 0.6)))
+            self.world.add(Explosion((0.0, 0.0, 0.6), 20))
 
         if window.key_pressed('right'):
             self.space_ship = self.ships[(self.ships.index(self.space_ship) + 1) % len(self.ships)]
-            self.world.add(Explosion((0.0, 0.0, 0.6)))
+            self.world.add(Explosion((0.0, 0.0, 0.6), 20))
 
         if window.key_pressed('space'):
             g.scene = Play(self.space_ship)
@@ -1005,6 +1036,9 @@ class Base:
 
         smoke_renderer.render()
         beam_renderer.render()
+
+        text_renderer.line(window.size[0] / 2 - 180, 100, 'press [SPACE] to start')
+        text_renderer.render()
 
 
 class Play:
