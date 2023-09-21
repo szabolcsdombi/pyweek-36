@@ -148,6 +148,11 @@ def rz(angle):
     return glm.quat(math.cos(angle * 0.5), 0.0, 0.0, math.sin(angle * 0.5))
 
 
+def smoothstep(edge0, edge1, x):
+    t = glm.clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
 with open('assets/assets.pickle', 'rb') as f:
     assets = pickle.load(f)
 
@@ -300,6 +305,7 @@ class BackgroundRenderer:
                 #version 330 core
 
                 uniform sampler2DArray Texture;
+                uniform float alpha;
 
                 in vec3 v_texcoord;
 
@@ -307,6 +313,7 @@ class BackgroundRenderer:
 
                 void main() {
                     out_color = texture(Texture, v_texcoord);
+                    out_color.a *= alpha;
                 }
             ''',
             layout=[
@@ -336,13 +343,18 @@ class BackgroundRenderer:
                 'src_color': 'src_alpha',
                 'dst_color': 'one_minus_src_alpha',
             },
+            uniforms={
+                'alpha': 1.0,
+            },
             framebuffer=[image],
             topology='triangle_strip',
             vertex_buffers=zengl.bind(self.instance_buffer, '4f 1f 1f /i', 0, 1, 2),
             vertex_count=4,
         )
 
-    def generate(self):
+    def generate(self, planets=True, exclude_home_planet=False):
+        self.instances.clear()
+
         for i in range(1000):
             rotation = random_rotation()
             self.instances.extend(self.instance.pack(*rotation, random.uniform(150.0, 250.0), 0.0)),
@@ -351,12 +363,24 @@ class BackgroundRenderer:
             rotation = random_rotation()
             self.instances.extend(self.instance.pack(*rotation, 5.0, 1.0)),
 
-        for i in range(5):
-            rotation = random_rotation()
-            self.instances.extend(self.instance.pack(*rotation, random.gauss(25.0, 5.0), i + 2))
+        if planets:
+            for i in range(5):
+                if exclude_home_planet and i == 1:
+                    continue
+                rotation = random_rotation()
+                self.instances.extend(self.instance.pack(*rotation, random.gauss(25.0, 5.0), i + 2))
 
         self.instance_buffer.write(self.instances)
         self.pipeline.instance_count = len(self.instances) // self.instance.size
+        self.set_alpha(1.0)
+
+    def add_home_planet(self, rotation, distance):
+        self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), distance, 3))
+        self.instance_buffer.write(self.instances)
+        self.pipeline.instance_count = len(self.instances) // self.instance.size
+
+    def set_alpha(self, alpha):
+        self.pipeline.uniforms['alpha'][:] = struct.pack('f', alpha)
 
     def render(self):
         self.pipeline.render()
@@ -607,7 +631,7 @@ class TextRenderer:
 
     def line(self, x, y, text):
         for i in range(len(text)):
-            self.instances.extend(self.instance.pack(x + i * 18.0, y, ord(text[i]) - 32))
+            self.instances.extend(self.instance.pack(x + i * 14.0, y, ord(text[i]) - 32))
 
     def render(self):
         self.instance_buffer.write(self.instances)
@@ -868,14 +892,49 @@ class Wind:
 
 class Intro:
     def __init__(self):
-        self.countdown = 60
+        self.frame = 0
+        background_renderer.generate(planets=False)
+        background_renderer.add_home_planet(ry(0.225), 15.0)
+        self.view = glm.vec3(1.0, 0.0, 0.0)
 
     def render(self):
-        self.countdown -= 1
-        if self.countdown == 0:
+        self.frame += 1
+
+        rotation_speed = 0.0005 * (1.0 - smoothstep(2000.0, 2120.0, self.frame))
+        self.view = ry(-rotation_speed) * self.view
+        background_renderer.set_alpha(min(max((self.frame - 150.0) / 120.0, 0.0), 1.0))
+
+        if window.key_pressed('space'):
             g.scene = Base()
 
-        text_renderer.line(100, 100, 'Hello World!')
+        lines = [
+            (30, 'In the year 3077,'),
+            (150, 'the Milky Way Galaxy is in the midst of an energy crisis.'),
+            (370, ''),
+            (370, 'The primary source of energy, a rare crystalline element called "Dark Matter" is nearing depletion.'),
+            (640, 'Dark Matter is primarily stored in canisters that have been scattered throughout space over centuries'),
+            (840, 'due to space wars, trading routes, and exploration mishaps.'),
+            (1110, ''),
+            (1110, 'Captain Neil Starbreaker is the fearless pilot of the spacecraft "Nebula Harvester".'),
+            (1340, 'Neil used to be a space pirate but has since reformed after witnessing'),
+            (1570, 'the dire effects of the energy crisis on his home planet, Noverra.'),
+            (1800, ''),
+            (1800, 'Join Captain Starbreaker on the "Nebula Harvester" and help save the galaxy.'),
+            (2000, ''),
+        ]
+
+        show = [text for when, text in lines if self.frame > when]
+
+        for i, text in enumerate(show):
+            text_renderer.line(100, 100 - (i - len(show)) * 30, text)
+
+        if self.frame > 2000:
+            text_renderer.line(window.size[0] / 2 - 180, 100, 'press [SPACE] to continue')
+
+        upward = glm.cross(self.view, (0.0, 1.0, 0.0))
+        camera = zengl.camera((0.0, 0.0, 0.0), self.view, upward, fov=60.0, aspect=window.aspect)
+        uniform_buffer.write(struct.pack('64s3f4x', camera, 0.0, 0.0, 0.0))
+        background_renderer.render()
         text_renderer.render()
 
 
