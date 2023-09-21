@@ -110,11 +110,11 @@ class Window:
 
 class Speaker:
     def __init__(self):
-        self.intro = pyglet.media.load('Intro', io.BytesIO(assets['Audio']['Intro']))
-        self.hover = pyglet.media.load('Engine', io.BytesIO(assets['Audio']['Engine']))
-        self.beam = pyglet.media.StaticSource(pyglet.media.load('Beam', io.BytesIO(assets['Audio']['Beam'])))
-        self.explosion = pyglet.media.StaticSource(pyglet.media.load('Explosion', io.BytesIO(assets['Audio']['Explosion'])))
-        self.canister = pyglet.media.StaticSource(pyglet.media.load('Canister', io.BytesIO(assets['Audio']['Canister'])))
+        self.intro = pyglet.media.load('Intro', io.BytesIO(assets['Audio']['Intro']), streaming=False)
+        self.hover = pyglet.media.load('Engine', io.BytesIO(assets['Audio']['Engine']), streaming=False)
+        self.beam = pyglet.media.load('Beam', io.BytesIO(assets['Audio']['Beam']), streaming=False)
+        self.explosion = pyglet.media.load('Explosion', io.BytesIO(assets['Audio']['Explosion']), streaming=False)
+        self.canister = pyglet.media.load('Canister', io.BytesIO(assets['Audio']['Canister']), streaming=False)
         self.player = pyglet.media.Player()
 
     def reset(self):
@@ -124,10 +124,6 @@ class Speaker:
     def queue_intro(self):
         self.reset()
         self.player.queue(self.intro)
-
-    def queue_hover(self):
-        self.reset()
-        self.player.queue(self.hover)
 
 
 def rotate(forward, upward, yaw, pitch, roll):
@@ -184,10 +180,10 @@ assets['Audio'] = {}
 with open('assets/intro.wav', 'rb') as f:
     assets['Audio']['Intro'] = f.read()
 
-with open('assets/spaceEngine_002.wav', 'rb') as f:
+with open('assets/spaceEngine_002-cut.wav', 'rb') as f:
     assets['Audio']['Engine'] = f.read()
 
-with open('assets/laserSmall_002.wav', 'rb') as f:
+with open('assets/laserSmall_003.wav', 'rb') as f:
     assets['Audio']['Beam'] = f.read()
 
 with open('assets/explosionCrunch_001.wav', 'rb') as f:
@@ -779,8 +775,10 @@ class SpaceShip:
         self.shooting = False
         self.health = 10
         self.alive = True
+        self.frame = 0
 
     def update(self, world):
+        self.frame += 1
         self.user_input = glm.clamp(self.user_input, glm.vec3(-1.0, -1.0, -1.0), glm.vec3(1.0, 1.0, 1.0))
         yaw, pitch, roll = self.yaw_pitch_roll
         self.forward, self.upward = rotate(self.forward, self.upward, yaw * 0.5, pitch * 0.5, roll * 0.5)
@@ -809,7 +807,7 @@ class SpaceShip:
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
-        if self.shooting:
+        if self.shooting and self.frame % 3 == 0:
             world.add(Beam(self, self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
             speaker.beam.play()
 
@@ -1048,14 +1046,15 @@ class Base:
         ]
         self.world = World()
         self.world.add(Wind())
-        speaker.queue_hover()
-        speaker.player.play()
+        speaker.reset()
         background_renderer.generate()
         self.space_ship = self.ships[0]
         self.view = (0.0, 0.0)
         self.frame = 0
 
     def render(self):
+        if self.frame % 100 == 0:
+            speaker.hover.play()
         self.view = (self.view[0] + window.mouse[0] * 0.001, self.view[1] + window.mouse[1] * 0.001)
         self.view = min(max(self.view[0], -1.0), 1.0), min(max(self.view[1], -0.5), 0.5)
         self.frame += 1
