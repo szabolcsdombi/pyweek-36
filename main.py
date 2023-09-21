@@ -357,18 +357,18 @@ class BackgroundRenderer:
 
         for i in range(1000):
             rotation = random_rotation()
-            self.instances.extend(self.instance.pack(*rotation, random.uniform(150.0, 250.0), 0.0)),
+            self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), random.uniform(150.0, 250.0), 0.0)),
 
         for i in range(200):
             rotation = random_rotation()
-            self.instances.extend(self.instance.pack(*rotation, 5.0, 1.0)),
+            self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), 5.0, 1.0)),
 
         if planets:
             for i in range(5):
                 if exclude_home_planet and i == 1:
                     continue
                 rotation = random_rotation()
-                self.instances.extend(self.instance.pack(*rotation, random.gauss(25.0, 5.0), i + 2))
+                self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), random.gauss(25.0, 5.0), i + 2))
 
         self.instance_buffer.write(self.instances)
         self.pipeline.instance_count = len(self.instances) // self.instance.size
