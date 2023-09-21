@@ -26,10 +26,23 @@ Based on the player's decisions, alliances can be formed or enemies made. For ex
 - [zengl](https://github.com/szabolcsdombi/zengl)
 - [pyglm](https://github.com/Zuzu-Typ/PyGLM)
 
+## Music
+
+Music | Artist | Link | License
+--- | --- | --- | ---
+Voxel Revolution | Kevin MacLeod | [link](https://filmmusic.io/song/7017-voxel-revolution) | [CC BY 4.0](https://filmmusic.io/standard-license)
+Impact Prelude | Kevin MacLeod | [link](https://filmmusic.io/song/7565-impact-prelude) | [CC BY 4.0](https://filmmusic.io/standard-license)
+Late Night Radio | Kevin MacLeod | [link](https://filmmusic.io/song/7613-late-night-radio) | [CC BY 4.0](https://filmmusic.io/standard-license)
+Raving Energy (faster) | Kevin MacLeod | [link](https://filmmusic.io/song/5030-raving-energy-faster) | [CC BY 4.0](https://filmmusic.io/standard-license)
+Beauty Flow | Kevin MacLeod | [link](https://filmmusic.io/song/5025-beauty-flow) | [CC BY 4.0](https://filmmusic.io/standard-license)
+Half Mystery | Kevin MacLeod | [link](https://filmmusic.io/song/5026-half-mystery) | [CC BY 4.0](https://filmmusic.io/standard-license)
+
 ## Assets
 
 - [Space Kit](https://www.kenney.nl/assets/space-kit)
-- custom
+- [Planets](https://www.kenney.nl/assets/planets)
+- [Sci-Fi Sounds](https://www.kenney.nl/assets/sci-fi-sounds)
+- [Simple Space](https://www.kenney.nl/assets/simple-space)
 
 The assets are pickled directly from Blender using the Python console.
 
