@@ -99,11 +99,19 @@ export_image(bpy.data.objects['planet-3'], 1.0)
 export_image(bpy.data.objects['planet-4'], 1.0)
 export_image(bpy.data.objects['planet-5'], 1.0)
 
-open(bpy.path.abspath('//assets.pickle'), 'wb').write(pickle.dumps({
-    'VertexData': bytes(vertex_data),
+assets = {
+    'VertexBuffer': {
+        'Objects': bytes(vertex_data),
+        'Smoke': export_particle_mesh(bpy.data.objects['smoke'], False),
+        'Debree': export_particle_mesh(bpy.data.objects['debree'], False),
+        'Beam': export_particle_mesh(bpy.data.objects['beam'], True),
+    },
     'Objects': objects,
     'Sprites': bytes(sprites),
-    'Smoke': export_particle_mesh(bpy.data.objects['smoke'], False),
-    'Debree': export_particle_mesh(bpy.data.objects['debree'], False),
-    'Beam': export_particle_mesh(bpy.data.objects['beam'], True),
-}))
+}
+
+with open(bpy.path.abspath('//font.pickle'), 'rb') as f:
+    assets['Font'] = pickle.loads(f.read())['Font']
+
+with open(bpy.path.abspath('//assets.pickle'), 'wb') as f:
+    f.write(pickle.dumps(assets))

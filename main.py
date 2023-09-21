@@ -156,9 +156,6 @@ def smoothstep(edge0, edge1, x):
 with open('assets/assets.pickle', 'rb') as f:
     assets = pickle.load(f)
 
-with open('assets/font.pickle', 'rb') as f:
-    assets['Font'] = pickle.load(f)['Font']
-
 window = Window()
 
 ctx = zengl.context(window.loader)
@@ -262,7 +259,7 @@ def make_object_pipeline(vertex_buffer, vertex_index, vertex_count):
 
 class ObjectRenderer:
     def __init__(self):
-        self.vertex_buffer = ctx.buffer(assets['VertexData'])
+        self.vertex_buffer = ctx.buffer(assets['VertexBuffer']['Objects'])
         self.pipelines = {
             name: make_object_pipeline(self.vertex_buffer, vertex_offset, vertex_count)
             for name, vertex_offset, vertex_count in assets['Objects']
@@ -408,7 +405,7 @@ class SmokeRenderer:
         self.instances = bytearray()
         self.instance = struct.Struct('3f 4f 1f')
 
-        self.vertex_buffer = ctx.buffer(assets['Smoke'])
+        self.vertex_buffer = ctx.buffer(assets['VertexBuffer']['Smoke'])
         self.instance_buffer = ctx.buffer(size=1024 * 1024)
 
         self.pipeline = ctx.pipeline(
@@ -498,7 +495,7 @@ class BeamRenderer:
         self.instances = bytearray()
         self.instance = struct.Struct('3f 4f 1f')
 
-        self.vertex_buffer = ctx.buffer(assets['Beam'])
+        self.vertex_buffer = ctx.buffer(assets['VertexBuffer']['Beam'])
         self.instance_buffer = ctx.buffer(size=1024 * 1024)
 
         self.pipeline = ctx.pipeline(
