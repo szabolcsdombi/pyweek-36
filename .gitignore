@@ -1,13 +1,15 @@
 .vscode
 build
 dist
-assets
 
 __pycache__
 *.egg-info
 *.pyc
 *.pyd
 *.so
+
+assets/*.blend1
+assets/*.pickle
 
 score.txt
 assets.pickle

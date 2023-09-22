@@ -5,7 +5,7 @@ from PIL import Image, ImageFont, ImageDraw
 img = Image.new('RGBA', (32, 32), '#fff')
 draw = ImageDraw.Draw(img)
 
-with open('assets/Inconsolata-Black.ttf', 'rb') as f:
+with open('assets/Inconsolata/Inconsolata-Black.ttf', 'rb') as f:
     draw.font = ImageFont.truetype(f, size=24)
 
 pixels = bytearray()

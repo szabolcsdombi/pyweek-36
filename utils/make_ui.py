@@ -1,7 +1,4 @@
-import os
 import pickle
-import struct
-import zipfile
 
 from PIL import Image, ImageDraw
 
@@ -18,11 +15,11 @@ def add(x, y, name, path, transpose=None):
 lookup = {}
 img = Image.new('RGBA', (SIZE, SIZE), (0, 0, 0, 0))
 
-add(480, 10, 'SpaceShip1', 'assets/UI/SpaceShip1.png')
-add(480, 60, 'SpaceShip2', 'assets/UI/SpaceShip2.png')
-add(480, 100, 'Canister', 'assets/UI/Canister.png')
-add(2, 2, 'Minimap', 'assets/UI/Minimap.png')
-add(236, 2, 'MinimapBorder', 'assets/UI/MinimapBorder.png')
+add(480, 10, 'SpaceShip1', 'assets/SimpleSpace/SpaceShip1.png')
+add(480, 60, 'SpaceShip2', 'assets/SimpleSpace/SpaceShip2.png')
+add(480, 100, 'Canister', 'assets/SimpleSpace/Canister.png')
+add(2, 2, 'Minimap', 'assets/SimpleSpace/Minimap.png')
+add(236, 2, 'MinimapBorder', 'assets/SimpleSpace/MinimapBorder.png')
 
 with open('assets/ui.pickle', 'wb') as f:
     f.write(pickle.dumps({
@@ -38,4 +35,4 @@ for name in lookup:
     draw.rectangle((x1 * SIZE, SIZE - y2 * SIZE, x2 * SIZE, SIZE - y1 * SIZE), None, '#ff0')
     draw.text((x1 * SIZE, SIZE - y2 * SIZE - 10), name, '#f00')
 
-img.save('assets/ui_debug.png')
+# img.save('assets/ui_debug.png')

@@ -5,16 +5,9 @@ import bpy
 
 Vertex = struct.Struct('3f3f3f')
 
-
 objects = []
 vertex_data = bytearray()
 sprites = bytearray()
-
-
-def export_image(obj, alpha):
-    pixels = obj.data.pixels
-    for x in pixels:
-        sprites.append(int(min(max(x * alpha * 255.0, 0), 255)))
 
 
 def export_mesh(obj, ref):
@@ -91,14 +84,6 @@ export_collection('Base', bpy.data.collections['base'], bpy.data.objects['platfo
 export_collection('Rocket1', bpy.data.collections['rocket-1'], bpy.data.objects['rocket_sidesA'])
 export_collection('Rocket2', bpy.data.collections['rocket-2'], bpy.data.objects['rocket_finsB'])
 
-export_image(bpy.data.objects['star'], 1.0)
-export_image(bpy.data.objects['nebula'], 0.5)
-export_image(bpy.data.objects['planet-1'], 1.0)
-export_image(bpy.data.objects['planet-2'], 1.0)
-export_image(bpy.data.objects['planet-3'], 1.0)
-export_image(bpy.data.objects['planet-4'], 1.0)
-export_image(bpy.data.objects['planet-5'], 1.0)
-
 assets = {
     'VertexBuffer': {
         'Objects': bytes(vertex_data),
@@ -107,8 +92,10 @@ assets = {
         'Beam': export_particle_mesh(bpy.data.objects['beam'], True),
     },
     'Objects': objects,
-    'Sprites': bytes(sprites),
 }
+
+with open(bpy.path.abspath('//sprites.pickle'), 'rb') as f:
+    assets['Sprites'] = pickle.loads(f.read())['Sprites']
 
 with open(bpy.path.abspath('//font.pickle'), 'rb') as f:
     assets['Font'] = pickle.loads(f.read())['Font']
@@ -119,5 +106,5 @@ with open(bpy.path.abspath('//audio.pickle'), 'rb') as f:
 with open(bpy.path.abspath('//ui.pickle'), 'rb') as f:
     assets['UI'] = pickle.loads(f.read())['UI']
 
-with open(bpy.path.abspath('//assets.pickle'), 'wb') as f:
+with open(bpy.path.abspath('//../assets.pickle'), 'wb') as f:
     f.write(pickle.dumps(assets))
