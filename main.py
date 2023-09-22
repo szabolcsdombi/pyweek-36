@@ -901,6 +901,13 @@ class SpaceShip:
                     obj.alive = False
                     self.health -= 1
 
+            if type(obj) is WanderingShip and obj.space_ship is not self:
+                obj.space_ship.alive = False
+                world.add(ExplosionChain(obj.space_ship.position, obj.space_ship.forward * 0.2))
+                world.add(ExplosionChain(self.position, self.forward * 0.2))
+                speaker.play_explosion()
+                self.alive = False
+
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
@@ -1236,6 +1243,12 @@ class Play:
         if self.frame % 100 == 0:
             speaker.play_hover()
         self.frame += 1
+
+        if not self.leaving and not self.space_ship.alive:
+            text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 120, 'Game over')
+            text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 70, 'press [SPACE] to exit')
+            if window.key_pressed('space'):
+                g.scene = Base()
 
         if self.leaving:
             text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 120, 'Abort mission?')
