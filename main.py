@@ -1014,7 +1014,7 @@ class SpaceShipControl:
         yaw += window.mouse[0] / 50.0
         pitch += window.mouse[1] / 50.0
         self.space_ship.user_input = glm.vec3(yaw, pitch, roll)
-        self.space_ship.shooting = window.key_down('shoot') or window.key_down('space')
+        self.space_ship.shooting = window.key_down('shoot')
 
 
 class World:
