@@ -26,6 +26,7 @@ KEYS = {
     pyglet.window.key.SPACE: 'space',
     pyglet.window.key.ESCAPE: 'escape',
     pyglet.window.key.BACKSPACE: 'escape',
+    pyglet.window.key.LCTRL: 'shoot',
     1: 'shoot',
 }
 
