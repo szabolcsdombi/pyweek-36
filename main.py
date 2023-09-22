@@ -23,6 +23,8 @@ KEYS = {
     pyglet.window.key.Q: 'turn_left',
     pyglet.window.key.E: 'turn_right',
     pyglet.window.key.SPACE: 'space',
+    pyglet.window.key.ESCAPE: 'escape',
+    pyglet.window.key.BACKSPACE: 'escape',
     1: 'shoot',
 }
 
@@ -1131,6 +1133,18 @@ class Intro:
         text_renderer.render()
 
 
+class Outro:
+    def __init__(self):
+        self.frame = 0
+
+    def render(self):
+        self.frame += 1
+        background_renderer.set_alpha(min(max(1.0 - (self.frame - 0.0) / 30.0, 0.0), 1.0))
+        background_renderer.render()
+        if self.frame == 60:
+            exit()
+
+
 class Base:
     def __init__(self):
         self.ships = [
@@ -1144,6 +1158,7 @@ class Base:
         self.space_ship = self.ships[0]
         self.view = (0.0, 0.0)
         self.frame = 0
+        self.leaving = False
 
     def render(self):
         speaker.update()
@@ -1152,6 +1167,18 @@ class Base:
         self.view = (self.view[0] + window.mouse[0] * 0.001, self.view[1] + window.mouse[1] * 0.001)
         self.view = min(max(self.view[0], -1.0), 1.0), min(max(self.view[1], -0.5), 0.5)
         self.frame += 1
+
+        if self.leaving:
+            text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 120, 'Exit the game?')
+            text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 70, 'press [SPACE] to exit')
+            text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 40, 'press [ESCAPE] to continue')
+            if window.key_pressed('space'):
+                g.scene = Outro()
+        else:
+            text_renderer.line(window.size[0] / 2 - 180, 100, 'press [SPACE] to start')
+
+        if window.key_pressed('escape'):
+            self.leaving = not self.leaving
 
         self.world.update()
 
@@ -1162,24 +1189,28 @@ class Base:
         background_renderer.render()
         self.world.render()
 
-        if window.key_pressed('left'):
-            self.space_ship = self.ships[(self.ships.index(self.space_ship) - 1) % len(self.ships)]
-            self.world.add(Explosion((0.0, 0.0, 0.6), 20))
+        if not self.leaving:
+            if window.key_pressed('left'):
+                self.space_ship = self.ships[(self.ships.index(self.space_ship) - 1) % len(self.ships)]
+                self.world.add(Explosion((0.0, 0.0, 0.6), 20))
+                speaker.play_explosion()
 
-        if window.key_pressed('right'):
-            self.space_ship = self.ships[(self.ships.index(self.space_ship) + 1) % len(self.ships)]
-            self.world.add(Explosion((0.0, 0.0, 0.6), 20))
+            if window.key_pressed('right'):
+                self.space_ship = self.ships[(self.ships.index(self.space_ship) + 1) % len(self.ships)]
+                speaker.play_explosion()
+                self.world.add(Explosion((0.0, 0.0, 0.6), 20))
 
-        if window.key_pressed('space'):
-            g.scene = Play(self.space_ship)
+            if window.key_pressed('space'):
+                g.scene = Play(self.space_ship)
 
-        object_renderer.render('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
-        object_renderer.render(self.space_ship, glm.vec3(0.0, 0.0, 0.6 + math.sin(self.frame / 20.0) * 0.1), rz(math.pi * 0.85), 0.6)
+            object_renderer.render('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
+            object_renderer.render(self.space_ship, glm.vec3(0.0, 0.0, 0.6 + math.sin(self.frame / 20.0) * 0.1), rz(math.pi * 0.85), 0.6)
+
+        if self.leaving:
+            smoke_renderer.instances.clear()
 
         smoke_renderer.render()
         beam_renderer.render()
-
-        text_renderer.line(window.size[0] / 2 - 180, 100, 'press [SPACE] to start')
         text_renderer.render()
 
 
@@ -1192,6 +1223,7 @@ class Play:
         speaker.reset()
         speaker.play_music()
         self.frame = 0
+        self.leaving = False
 
         self.world.add(self.space_ship)
         for _ in range(10):
@@ -1204,6 +1236,16 @@ class Play:
         if self.frame % 100 == 0:
             speaker.play_hover()
         self.frame += 1
+
+        if self.leaving:
+            text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 120, 'Abort mission?')
+            text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 70, 'press [SPACE] to exit')
+            text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 40, 'press [ESCAPE] to continue')
+            if window.key_pressed('space'):
+                g.scene = Base()
+
+        if window.key_pressed('escape'):
+            self.leaving = not self.leaving
 
         self.controller.update()
 
