@@ -1217,31 +1217,39 @@ class Play:
         smoke_renderer.render()
         beam_renderer.render()
 
+        x, y = window.size[0] - 150, 150
+        sprite_renderer.add('Minimap', (x, y), 0.0)
+        p = self.space_ship.position
+        r = glm.inverse(self.space_ship.rotation)
+        for obj in self.world.game_objects:
+            if type(obj) is Canister:
+                t = r * (obj.position - p) / 100.0
+                if abs(t.z) > 0.1:
+                    continue
+                t.z = 0.0
+                if glm.length(t) > 1.0:
+                    t = glm.normalize(t)
+                sprite_renderer.add('Canister', (x - t.x * 100.0, y - t.y * 100.0), 0.0)
+            if type(obj) is WanderingShip:
+                t = r * (obj.position - p) / 30.0
+                t.z = 0.0
+                if glm.length(t) > 1.0:
+                    t = glm.normalize(t)
+                q = r * obj.space_ship.rotation * glm.vec3(0.0, -1.0, 0.0)
+                e = math.atan2(q.x, q.y) + math.pi
+                sprite_renderer.add('SpaceShip2', (x - t.x * 100.0, y - t.y * 100.0), e)
+        sprite_renderer.add('SpaceShip1', (x, y), 0.0)
+        sprite_renderer.add('MinimapBorder', (x, y), 0.0)
+        sprite_renderer.render()
+
         text_renderer.line(window.size[0] - 250, window.size[1] - 50, f'Score: {self.space_ship.canisters_collected}')
         text_renderer.line(window.size[0] - 250, window.size[1] - 80, f'Canisters: {sum(1 for x in self.world.game_objects if type(x) is Canister)}')
         text_renderer.line(window.size[0] - 250, window.size[1] - 110, f'Rivals: {sum(1 for x in self.world.game_objects if type(x) is WanderingShip)}')
         text_renderer.render()
 
 
-class Testing:
-    def __init__(self):
-        pass
-
-    def render(self):
-        x, y = window.size[0] - 150, 150
-        sprite_renderer.add('Minimap', (x, y), 0.0)
-        sprite_renderer.add('Canister', (x + 20, y + 40), 0.0)
-        sprite_renderer.add('SpaceShip2', (x - 30, y + 60), 1.3)
-        sprite_renderer.add('SpaceShip1', (x, y), 0.0)
-        sprite_renderer.add('MinimapBorder', (x, y), 0.0)
-        text_renderer.line(20, 20, 'Testing...')
-
-        sprite_renderer.render()
-        text_renderer.render()
-
-
 class g:
-    scene = Testing()
+    scene = Play('SpaceShip1')
 
 
 def render():
