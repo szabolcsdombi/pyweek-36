@@ -996,7 +996,7 @@ class WanderingShip:
 
 class Canister:
     def __init__(self):
-        self.position = glm.vec3(random.random(), random.random(), random.random()) * 200.0 - 100.0
+        self.position = random_rotation() * glm.vec3(random.uniform(30.0, 100.0))
         self.rotation = random_rotation()
         self.axis = random_rotation() * glm.vec3(1.0, 0.0, 0.0)
         self.alive = True
@@ -1210,7 +1210,7 @@ class Base:
         self.world = World()
         self.world.add(Wind())
         speaker.reset()
-        background_renderer.generate()
+        background_renderer.generate(exclude_home_planet=True)
         self.space_ship_model = space_ship_model
         self.view = (0.0, 0.0)
         self.frame = 0
@@ -1257,7 +1257,10 @@ class Base:
                 self.world.add(Explosion((0.0, 0.0, 0.6), 20))
 
             if window.key_pressed('space'):
-                g.scene = Play(self.space_ship_model)
+                if g.total_score > 0:
+                    g.scene = Play(self.space_ship_model)
+                else:
+                    g.scene = Tutorial()
 
             object_renderer.render('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
             object_renderer.render(self.space_ship_model, glm.vec3(0.0, 0.0, 0.6 + math.sin(self.frame / 20.0) * 0.1), rz(math.pi * 0.85), 0.6)
@@ -1271,6 +1274,32 @@ class Base:
         smoke_renderer.render()
         beam_renderer.render()
         text_renderer.render()
+
+
+def render_minimap(space_ship, world):
+    x, y = window.size[0] - 150, 150
+    sprite_renderer.add('Minimap', (x, y), 0.0)
+    p = space_ship.position
+    r = glm.inverse(space_ship.rotation)
+    for obj in world.game_objects:
+        if type(obj) is Canister:
+            t = r * (obj.position - p) / 100.0
+            if abs(t.z) > 0.1:
+                continue
+            t.z = 0.0
+            if glm.length(t) > 1.0:
+                t = glm.normalize(t)
+            sprite_renderer.add('Canister', (x - t.x * 100.0, y - t.y * 100.0), 0.0)
+        if type(obj) is SpaceShip and obj is not space_ship:
+            t = r * (obj.position - p) / 100.0
+            t.z = 0.0
+            if glm.length(t) > 1.0:
+                t = glm.normalize(t)
+            q = r * obj.rotation * glm.vec3(0.0, -1.0, 0.0)
+            e = math.atan2(q.x, q.y) + math.pi
+            sprite_renderer.add('SpaceShip2', (x - t.x * 100.0, y - t.y * 100.0), e)
+    sprite_renderer.add('SpaceShip1', (x, y), 0.0)
+    sprite_renderer.add('MinimapBorder', (x, y), 0.0)
 
 
 class Play:
@@ -1328,34 +1357,145 @@ class Play:
         smoke_renderer.render()
         beam_renderer.render()
 
-        x, y = window.size[0] - 150, 150
-        sprite_renderer.add('Minimap', (x, y), 0.0)
-        p = self.space_ship.position
-        r = glm.inverse(self.space_ship.rotation)
-        for obj in self.world.game_objects:
-            if type(obj) is Canister:
-                t = r * (obj.position - p) / 100.0
-                if abs(t.z) > 0.1:
-                    continue
-                t.z = 0.0
-                if glm.length(t) > 1.0:
-                    t = glm.normalize(t)
-                sprite_renderer.add('Canister', (x - t.x * 100.0, y - t.y * 100.0), 0.0)
-            if type(obj) is WanderingShip:
-                t = r * (obj.position - p) / 30.0
-                t.z = 0.0
-                if glm.length(t) > 1.0:
-                    t = glm.normalize(t)
-                q = r * obj.space_ship.rotation * glm.vec3(0.0, -1.0, 0.0)
-                e = math.atan2(q.x, q.y) + math.pi
-                sprite_renderer.add('SpaceShip2', (x - t.x * 100.0, y - t.y * 100.0), e)
-        sprite_renderer.add('SpaceShip1', (x, y), 0.0)
-        sprite_renderer.add('MinimapBorder', (x, y), 0.0)
+        render_minimap(self.space_ship, self.world)
         sprite_renderer.render()
 
         text_renderer.line(window.size[0] - 250, window.size[1] - 50, f'Score: {self.space_ship.canisters_collected}')
         text_renderer.line(window.size[0] - 250, window.size[1] - 80, f'Canisters: {sum(1 for x in self.world.game_objects if type(x) is Canister)}')
         text_renderer.line(window.size[0] - 250, window.size[1] - 110, f'Rivals: {sum(1 for x in self.world.game_objects if type(x) is WanderingShip)}')
+        text_renderer.render()
+
+
+class Tutorial:
+    def __init__(self):
+        self.world = World()
+        self.space_ship = SpaceShip('SpaceShip0')
+        self.controller = SpaceShipControl(self.space_ship)
+        background_renderer.generate(planets=False)
+        speaker.reset()
+        speaker.play_music()
+        self.world.add(self.space_ship)
+        self.frame = 0
+        self.leaving = False
+        self.hint = 0
+
+    def render(self):
+        speaker.update()
+        if self.frame % 100 == 0:
+            speaker.play_hover()
+        self.frame += 1
+
+        cx, cy = window.size[0] / 2.0, window.size[1] / 2.0
+
+        if self.leaving:
+            text_renderer.line(cx - 180, cy + 120, 'Abort mission?')
+            text_renderer.line(cx - 180, cy + 70, 'press [SPACE] to exit')
+            text_renderer.line(cx - 180, cy + 40, 'press [ESCAPE] to continue')
+            if window.key_pressed('space'):
+                g.total_score += self.space_ship.canisters_collected
+                save_score(g.total_score)
+                g.scene = Base(self.space_ship.space_ship_model)
+
+        elif self.hint == 0:
+            text_renderer.line(cx - 220, cy + 100 + 220, 'Welcome to the Tutorial')
+            text_renderer.line(cx - 220, cy + 100 + 130, 'For the next hint press [SPACE]')
+            text_renderer.line(cx - 220, cy + 100 + 100, 'To quit anytime press [ESCAPE]')
+
+        elif self.hint == 1:
+            text_renderer.line(cx - 220, cy + 100 + 220, 'You can now control the ship')
+            text_renderer.line(cx - 220, cy + 100 + 130, 'Use the mouse for smooth navigation')
+            text_renderer.line(cx - 220, cy + 100 + 100, 'Click to shoot laser beams')
+
+        elif self.hint == 2:
+            text_renderer.line(cx - 300, cy + 100 + 220, 'Your stats are tracked up top')
+            text_renderer.line(cx - 300, cy + 100 + 130, 'The goal is to collect canisters of Dark Matter')
+            text_renderer.line(cx - 300, cy + 100 + 100, 'For every 20 canisters a new Space Ship is unlocked')
+
+        elif self.hint == 3:
+            text_renderer.line(cx - 220, cy + 100 + 220, 'There is a minimap in the corner')
+            text_renderer.line(cx - 220, cy + 100 + 130, 'The minimap shows the nearby canisters')
+            text_renderer.line(cx - 220, cy + 100 + 100, 'Collect at least one canister')
+
+        elif self.hint == 4:
+            pass
+
+        elif self.hint == 5:
+            text_renderer.line(cx - 300, cy + 100 + 220, 'Don\'t you think I give you all these canisters for free?')
+            text_renderer.line(cx - 300, cy + 100 + 130, 'Your rivals also need this valuable Dark Matter')
+            text_renderer.line(cx - 300, cy + 100 + 100, 'You can shoot them down you know')
+
+        elif self.hint == 6:
+            pass
+
+        elif self.hint == 7:
+            text_renderer.line(cx - 180, cy + 180, 'Congratulations!')
+            text_renderer.line(cx - 180, cy + 130, 'You have completed the tutorial')
+            text_renderer.line(cx - 180, cy + 40, 'press [SPACE] to continue')
+
+        if window.key_pressed('space') and self.hint != 4 and self.hint != 6:
+            if self.hint == 3:
+                for _ in range(150):
+                    canister = Canister()
+                    canister.position += self.space_ship.position
+                    self.world.add(canister)
+            if self.hint == 5:
+                space_ship = SpaceShip('SpaceShip3')
+                sideways = glm.cross(self.space_ship.forward, self.space_ship.upward)
+                space_ship.position = self.space_ship.position + self.space_ship.forward * 60.0 - sideways * 50.0
+                space_ship.upward = self.space_ship.upward
+                space_ship.forward = sideways
+                space_ship.user_input.z = 1.0
+                self.world.add(space_ship)
+                for i in range(15):
+                    canister = Canister()
+                    canister.position = space_ship.position + space_ship.forward * (30.0 + i * 3.0)
+                    self.world.add(canister)
+            if self.hint == 7:
+                g.total_score += self.space_ship.canisters_collected
+                save_score(g.total_score)
+                g.scene = Base(self.space_ship.space_ship_model)
+
+            self.hint += 1
+
+        if window.key_pressed('escape'):
+            self.leaving = not self.leaving
+
+        if self.hint >= 1 and self.hint != 5:
+            self.controller.update()
+
+        self.world.update()
+
+        canisters = sum(1 for x in self.world.game_objects if type(x) is Canister)
+        rivals = sum(1 for x in self.world.game_objects if type(x) is SpaceShip and x is not self.space_ship)
+
+        if self.hint == 4 and canisters < 150:
+            for obj in self.world.game_objects:
+                if type(obj) is Canister:
+                    obj.alive = False
+                self.space_ship.user_input = glm.vec3(0.0, 0.0, 0.0)
+            self.hint += 1
+
+        if self.hint == 6 and (canisters == 0 or rivals == 0):
+            self.hint += 1
+
+        eye, target, upward = self.space_ship.camera()
+        set_camera(eye, target, upward)
+        background_renderer.render()
+
+        self.world.render()
+
+        smoke_renderer.render()
+        beam_renderer.render()
+
+        if self.hint >= 2:
+            text_renderer.line(window.size[0] - 250, window.size[1] - 50, f'Score: {self.space_ship.canisters_collected}')
+            text_renderer.line(window.size[0] - 250, window.size[1] - 80, f'Canisters: {canisters}')
+            text_renderer.line(window.size[0] - 250, window.size[1] - 110, f'Rivals: {rivals}')
+
+        if self.hint >= 3:
+            render_minimap(self.space_ship, self.world)
+
+        sprite_renderer.render()
         text_renderer.render()
 
 
