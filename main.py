@@ -887,18 +887,35 @@ class SpaceShip:
         self.rotation = glm.quat(1.0, 0.0, 0.0, 0.0)
         self.canisters_collected = 0
         self.shooting = False
-        self.health = 10
         self.alive = True
         self.frame = 0
 
+        perks = {
+            'SpaceShip0': {'speed': 0.3, 'mobility': 1.0, 'health': 10, 'fire_cooldown': 5, 'fire_spread': 0.1, 'dual_cannon': False},
+            'SpaceShip1': {'speed': 0.3, 'mobility': 1.0, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.08, 'dual_cannon': False},
+            'SpaceShip2': {'speed': 0.4, 'mobility': 1.2, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.08, 'dual_cannon': False},
+            'SpaceShip3': {'speed': 0.4, 'mobility': 1.2, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.06, 'dual_cannon': False},
+            'SpaceShip4': {'speed': 0.5, 'mobility': 1.0, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.06, 'dual_cannon': False},
+            'SpaceShip5': {'speed': 0.5, 'mobility': 1.2, 'health': 30, 'fire_cooldown': 3, 'fire_spread': 0.03, 'dual_cannon': False},
+            'SpaceShip6': {'speed': 0.5, 'mobility': 1.2, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.03, 'dual_cannon': True},
+            'SpaceShip7': {'speed': 0.8, 'mobility': 2.0, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.001, 'dual_cannon': False},
+        }[space_ship_model]
+
+        self.speed = perks['speed']
+        self.mobility = perks['mobility']
+        self.health = perks['health']
+        self.fire_cooldown = perks['fire_cooldown']
+        self.fire_spread = perks['fire_spread']
+        self.dual_cannon = perks['dual_cannon']
+
     def update(self, world):
         self.frame += 1
-        self.user_input = glm.clamp(self.user_input, glm.vec3(-1.0, -1.0, -1.0), glm.vec3(1.0, 1.0, 1.0))
+        self.user_input = glm.clamp(self.user_input, glm.vec3(-self.mobility), glm.vec3(self.mobility))
         yaw, pitch, roll = self.yaw_pitch_roll
         self.forward, self.upward = rotate(self.forward, self.upward, yaw * 0.5, pitch * 0.5, roll * 0.5)
         temp_forward, temp_upward = rotate(self.forward, self.upward, yaw * 2.0, pitch * 2.0, roll * 2.0)
         self.yaw_pitch_roll = (self.yaw_pitch_roll + self.user_input * 0.01) * 0.9
-        self.position += self.forward * 0.3
+        self.position += self.forward * self.speed
         self.rotation = quat_look_at(temp_forward, temp_upward)
 
         if self.health < 0:
@@ -928,8 +945,12 @@ class SpaceShip:
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
         world.add(ShipSmoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
-        if self.shooting and self.frame % 3 == 0:
-            world.add(Beam(self, self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(0.1, 0.0, 0.0)))
+        if self.shooting and self.frame % self.fire_cooldown == 0:
+            if self.dual_cannon:
+                world.add(Beam(self, self.position + self.rotation * glm.vec3(0.5, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(self.fire_spread, 0.0, 0.0)))
+                world.add(Beam(self, self.position + self.rotation * glm.vec3(-0.5, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(self.fire_spread, 0.0, 0.0)))
+            else:
+                world.add(Beam(self, self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(self.fire_spread, 0.0, 0.0)))
             speaker.play_beam()
 
     def render(self):
