@@ -1,5 +1,6 @@
 import io
 import math
+import os
 import pickle
 import random
 import struct
@@ -194,6 +195,22 @@ def rz(angle):
 def smoothstep(edge0, edge1, x):
     t = glm.clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0)
     return t * t * (3.0 - 2.0 * t)
+
+
+def load_score():
+    try:
+        with open(os.path.join(os.path.dirname(__file__), 'score.txt')) as f:
+            return int(f.read().strip())
+    except:
+        return 0
+
+
+def save_score(score):
+    try:
+        with open(os.path.join(os.path.dirname(__file__), 'score.txt'), 'w') as f:
+            print(score, file=f)
+    except:
+        pass
 
 
 with open('assets/assets.pickle', 'rb') as f:
@@ -974,7 +991,7 @@ class SpaceShipControl:
         yaw += window.mouse[0] / 50.0
         pitch += window.mouse[1] / 50.0
         self.space_ship.user_input = glm.vec3(yaw, pitch, roll)
-        self.space_ship.shooting = window.key_down('shoot')
+        self.space_ship.shooting = window.key_down('shoot') or window.key_down('space')
 
 
 class World:
@@ -1154,10 +1171,14 @@ class Outro:
 
 class Base:
     def __init__(self):
+        self.unlocked_ships = g.total_score // 20 + 1
         self.ships = [
             'SpaceShip0', 'SpaceShip1', 'SpaceShip2', 'SpaceShip3',
             'SpaceShip4', 'SpaceShip5', 'SpaceShip6', 'SpaceShip7',
-        ]
+        ][:self.unlocked_ships]
+        if self.unlocked_ships > 8:
+            self.unlocked_ships = 'all'
+
         self.world = World()
         self.world.add(Wind())
         speaker.reset()
@@ -1216,6 +1237,9 @@ class Base:
         if self.leaving:
             smoke_renderer.instances.clear()
 
+        text_renderer.line(window.size[0] - 300, window.size[1] - 50, f'Dark Matter: {g.total_score}')
+        text_renderer.line(window.size[0] - 300, window.size[1] - 80, f'Unlocked Ships: {self.unlocked_ships}')
+
         smoke_renderer.render()
         beam_renderer.render()
         text_renderer.render()
@@ -1248,6 +1272,8 @@ class Play:
             text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 120, 'Game over')
             text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 70, 'press [SPACE] to exit')
             if window.key_pressed('space'):
+                g.total_score += self.space_ship.canisters_collected
+                save_score(g.total_score)
                 g.scene = Base()
 
         if self.leaving:
@@ -1255,6 +1281,8 @@ class Play:
             text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 70, 'press [SPACE] to exit')
             text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 40, 'press [ESCAPE] to continue')
             if window.key_pressed('space'):
+                g.total_score += self.space_ship.canisters_collected
+                save_score(g.total_score)
                 g.scene = Base()
 
         if window.key_pressed('escape'):
@@ -1304,7 +1332,8 @@ class Play:
 
 
 class g:
-    scene = Play('SpaceShip1')
+    scene = Intro()
+    total_score = load_score()
 
 
 def render():

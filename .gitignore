@@ -8,3 +8,6 @@ __pycache__
 *.pyc
 *.pyd
 *.so
+
+score.txt
+assets.pickle
