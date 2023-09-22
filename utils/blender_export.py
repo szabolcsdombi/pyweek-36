@@ -116,5 +116,8 @@ with open(bpy.path.abspath('//font.pickle'), 'rb') as f:
 with open(bpy.path.abspath('//audio.pickle'), 'rb') as f:
     assets['Audio'] = pickle.loads(f.read())['Audio']
 
+with open(bpy.path.abspath('//ui.pickle'), 'rb') as f:
+    assets['UI'] = pickle.loads(f.read())['UI']
+
 with open(bpy.path.abspath('//assets.pickle'), 'wb') as f:
     f.write(pickle.dumps(assets))

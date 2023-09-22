@@ -704,11 +704,101 @@ class TextRenderer:
         self.pipeline.render()
         self.instances.clear()
 
+
+class SpriteRenderer:
+    def __init__(self):
+        self.instances = bytearray()
+        self.instance = struct.Struct('2f 1f 2f 4f')
+
+        self.texture = ctx.image((512, 512), 'rgba8unorm', data=assets['UI']['Texture'])
+        self.sprites = assets['UI']['Sprites']
+
+        self.instance_buffer = ctx.buffer(size=1024 * 1024)
+
+        self.pipeline = ctx.pipeline(
+            vertex_shader='''
+                #version 330 core
+
+                #include "screen_size"
+
+                vec2 vertices[4] = vec2[](
+                    vec2(0.0, 0.0),
+                    vec2(0.0, 1.0),
+                    vec2(1.0, 0.0),
+                    vec2(1.0, 1.0)
+                );
+
+                layout (location = 0) in vec2 in_position;
+                layout (location = 1) in float in_rotation;
+                layout (location = 2) in vec2 in_size;
+                layout (location = 3) in vec4 in_texcoords;
+
+                out vec2 v_texcoord;
+
+                void main() {
+                    mat2 rotation = mat2(cos(in_rotation), -sin(in_rotation), sin(in_rotation), cos(in_rotation));
+                    vec2 vertex = in_position + rotation * (in_size * (vertices[gl_VertexID] - 0.5));
+                    v_texcoord = mix(in_texcoords.xy, in_texcoords.zw, vertices[gl_VertexID]);
+                    gl_Position = vec4(vertex / screen_size * 2.0 - 1.0, 0.0, 1.0);
+                }
+            ''',
+            fragment_shader='''
+                #version 330 core
+
+                uniform sampler2D Texture;
+
+                in vec2 v_texcoord;
+
+                layout (location = 0) out vec4 out_color;
+
+                void main() {
+                    out_color = texture(Texture, v_texcoord);
+                }
+            ''',
+            includes={
+                'screen_size': f'const vec2 screen_size = vec2({float(window.size[0])}, {float(window.size[1])});',
+            },
+            layout=[
+                {
+                    'name': 'Texture',
+                    'binding': 0,
+                },
+            ],
+            resources=[
+                {
+                    'type': 'sampler',
+                    'binding': 0,
+                    'image': self.texture,
+                },
+            ],
+            blend={
+                'enable': True,
+                'src_color': 'src_alpha',
+                'dst_color': 'one_minus_src_alpha',
+            },
+            framebuffer=[image],
+            topology='triangle_strip',
+            vertex_buffers=zengl.bind(self.instance_buffer, '2f 1f 2f 4f /i', 0, 1, 2, 3),
+            vertex_count=4,
+        )
+
+    def add(self, name, position, rotation):
+        size, texcoords = self.sprites[name]
+        self.instances.extend(self.instance.pack(*position, rotation, *size, *texcoords))
+
+    def render(self):
+        self.instance_buffer.write(self.instances)
+        self.pipeline.instance_count = len(self.instances) // self.instance.size
+        self.pipeline.render()
+        self.instances.clear()
+
+
 object_renderer = ObjectRenderer()
 background_renderer = BackgroundRenderer()
 smoke_renderer = SmokeRenderer()
 beam_renderer = BeamRenderer()
 text_renderer = TextRenderer()
+sprite_renderer = SpriteRenderer()
 
 
 class Beam:
@@ -1133,8 +1223,25 @@ class Play:
         text_renderer.render()
 
 
+class Testing:
+    def __init__(self):
+        pass
+
+    def render(self):
+        x, y = window.size[0] - 150, 150
+        sprite_renderer.add('Minimap', (x, y), 0.0)
+        sprite_renderer.add('Canister', (x + 20, y + 40), 0.0)
+        sprite_renderer.add('SpaceShip2', (x - 30, y + 60), 1.3)
+        sprite_renderer.add('SpaceShip1', (x, y), 0.0)
+        sprite_renderer.add('MinimapBorder', (x, y), 0.0)
+        text_renderer.line(20, 20, 'Testing...')
+
+        sprite_renderer.render()
+        text_renderer.render()
+
+
 class g:
-    scene = Intro()
+    scene = Testing()
 
 
 def render():
