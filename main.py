@@ -338,7 +338,7 @@ class ObjectRenderer:
 class BackgroundRenderer:
     def __init__(self):
         self.instances = bytearray()
-        self.instance = struct.Struct('4f 1f 1f')
+        self.instance = struct.Struct('4f 1f 1f 1f')
 
         self.sprites = ctx.image((128, 128), 'rgba8unorm', array=7, data=assets['Sprites'])
         self.instance_buffer = ctx.buffer(size=1024 * 1024)
@@ -367,14 +367,17 @@ class BackgroundRenderer:
                 layout (location = 0) in vec4 in_rotation;
                 layout (location = 1) in float in_distance;
                 layout (location = 2) in float in_texture;
+                layout (location = 3) in float in_alpha;
 
                 out vec3 v_texcoord;
+                out float v_alpha;
 
                 void main() {
+                    v_alpha = in_alpha;
+                    v_texcoord = vec3(vertices[gl_VertexID] * 0.5 + 0.5, in_texture);
                     vec3 vertex = qtransform(in_rotation, vec3(vertices[gl_VertexID] * 100.0, in_distance * 100.0));
                     gl_Position = mvp * vec4(camera_position.xyz + vertex, 1.0);
                     gl_Position.w = gl_Position.z;
-                    v_texcoord = vec3(vertices[gl_VertexID] * 0.5 + 0.5, in_texture);
                 }
             ''',
             fragment_shader='''
@@ -384,12 +387,13 @@ class BackgroundRenderer:
                 uniform float alpha;
 
                 in vec3 v_texcoord;
+                in float v_alpha;
 
                 layout (location = 0) out vec4 out_color;
 
                 void main() {
                     out_color = texture(Texture, v_texcoord);
-                    out_color.a *= alpha;
+                    out_color.a *= v_alpha * alpha;
                 }
             ''',
             layout=[
@@ -424,7 +428,7 @@ class BackgroundRenderer:
             },
             framebuffer=[image],
             topology='triangle_strip',
-            vertex_buffers=zengl.bind(self.instance_buffer, '4f 1f 1f /i', 0, 1, 2),
+            vertex_buffers=zengl.bind(self.instance_buffer, '4f 1f 1f 1f /i', 0, 1, 2, 3),
             vertex_count=4,
         )
 
@@ -433,25 +437,25 @@ class BackgroundRenderer:
 
         for i in range(1000):
             rotation = random_rotation()
-            self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), random.uniform(150.0, 250.0), 0.0)),
+            self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), random.uniform(150.0, 250.0), 0.0, 1.0)),
 
         for i in range(200):
             rotation = random_rotation()
-            self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), 5.0, 1.0)),
+            self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), 5.0, 1.0, 0.35)),
 
         if planets:
             for i in range(5):
                 if exclude_home_planet and i == 1:
                     continue
                 rotation = random_rotation()
-                self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), random.gauss(25.0, 5.0), i + 2))
+                self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), random.gauss(25.0, 5.0), i + 2, 1.0))
 
         self.instance_buffer.write(self.instances)
         self.pipeline.instance_count = len(self.instances) // self.instance.size
         self.set_alpha(1.0)
 
     def add_home_planet(self, rotation, distance):
-        self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), distance, 3))
+        self.instances.extend(self.instance.pack(*glm.quat_to_vec4(rotation), distance, 3, 1.0))
         self.instance_buffer.write(self.instances)
         self.pipeline.instance_count = len(self.instances) // self.instance.size
 
