@@ -213,7 +213,7 @@ def save_score(score):
         pass
 
 
-with open('assets/assets.pickle', 'rb') as f:
+with open('assets.pickle', 'rb') as f:
     assets = pickle.load(f)
 
 window = Window()
