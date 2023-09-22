@@ -891,14 +891,14 @@ class SpaceShip:
         self.frame = 0
 
         perks = {
-            'SpaceShip0': {'speed': 0.3, 'mobility': 1.0, 'health': 10, 'fire_cooldown': 5, 'fire_spread': 0.1, 'dual_cannon': False},
-            'SpaceShip1': {'speed': 0.3, 'mobility': 1.0, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.08, 'dual_cannon': False},
-            'SpaceShip2': {'speed': 0.4, 'mobility': 1.2, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.08, 'dual_cannon': False},
-            'SpaceShip3': {'speed': 0.4, 'mobility': 1.2, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.06, 'dual_cannon': False},
-            'SpaceShip4': {'speed': 0.5, 'mobility': 1.0, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.06, 'dual_cannon': False},
-            'SpaceShip5': {'speed': 0.5, 'mobility': 1.2, 'health': 30, 'fire_cooldown': 3, 'fire_spread': 0.03, 'dual_cannon': False},
-            'SpaceShip6': {'speed': 0.5, 'mobility': 1.2, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.03, 'dual_cannon': True},
-            'SpaceShip7': {'speed': 0.8, 'mobility': 2.0, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.001, 'dual_cannon': False},
+            'SpaceShip0': {'speed': 0.3, 'mobility': 1.0, 'health': 10, 'fire_cooldown': 5, 'fire_spread': 0.1, 'dual_cannon': False, 'smoke_offset': (0.35, 0.1)},
+            'SpaceShip1': {'speed': 0.3, 'mobility': 1.0, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.08, 'dual_cannon': False, 'smoke_offset': (0.4, 0.05)},
+            'SpaceShip2': {'speed': 0.4, 'mobility': 1.2, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.08, 'dual_cannon': False, 'smoke_offset': (0.4, 0.0)},
+            'SpaceShip3': {'speed': 0.4, 'mobility': 1.2, 'health': 10, 'fire_cooldown': 3, 'fire_spread': 0.06, 'dual_cannon': False, 'smoke_offset': (0.4, 0.0)},
+            'SpaceShip4': {'speed': 0.5, 'mobility': 1.0, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.06, 'dual_cannon': False, 'smoke_offset': (0.6, 0.1)},
+            'SpaceShip5': {'speed': 0.5, 'mobility': 1.2, 'health': 30, 'fire_cooldown': 3, 'fire_spread': 0.03, 'dual_cannon': False, 'smoke_offset': (0.5, 0.05)},
+            'SpaceShip6': {'speed': 0.5, 'mobility': 1.2, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.03, 'dual_cannon': True, 'smoke_offset': (0.4, 0.0)},
+            'SpaceShip7': {'speed': 0.8, 'mobility': 2.0, 'health': 20, 'fire_cooldown': 3, 'fire_spread': 0.001, 'dual_cannon': False, 'smoke_offset': (0.3, 0.1)},
         }[space_ship_model]
 
         self.speed = perks['speed']
@@ -907,6 +907,7 @@ class SpaceShip:
         self.fire_cooldown = perks['fire_cooldown']
         self.fire_spread = perks['fire_spread']
         self.dual_cannon = perks['dual_cannon']
+        self.smoke_offset = perks['smoke_offset']
 
     def update(self, world):
         self.frame += 1
@@ -942,8 +943,9 @@ class SpaceShip:
                 speaker.play_explosion()
                 self.alive = False
 
-        world.add(ShipSmoke(self.position + self.rotation * glm.vec3(0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
-        world.add(ShipSmoke(self.position + self.rotation * glm.vec3(-0.35, 0.85, -0.1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
+        s0, s1 = self.smoke_offset
+        world.add(ShipSmoke(self.position + self.rotation * glm.vec3(s0, 0.85, -s1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
+        world.add(ShipSmoke(self.position + self.rotation * glm.vec3(-s0, 0.85, -s1), self.forward * 0.3 + random_rotation() * glm.vec3(0.01, 0.0, 0.0)))
 
         if self.shooting and self.frame % self.fire_cooldown == 0:
             if self.dual_cannon:
