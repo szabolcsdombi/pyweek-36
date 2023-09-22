@@ -1147,7 +1147,7 @@ class Intro:
         background_renderer.set_alpha(min(max((self.frame - 150.0) / 120.0, 0.0), 1.0))
 
         if window.key_pressed('space'):
-            g.scene = Base()
+            g.scene = Base('SpaceShip0')
 
         lines = [
             (30, 'In the year 3077,'),
@@ -1193,20 +1193,20 @@ class Outro:
 
 
 class Base:
-    def __init__(self):
+    def __init__(self, space_ship_model):
         self.unlocked_ships = g.total_score // 20 + 1
         self.ships = [
             'SpaceShip0', 'SpaceShip1', 'SpaceShip2', 'SpaceShip3',
             'SpaceShip4', 'SpaceShip5', 'SpaceShip6', 'SpaceShip7',
         ][:self.unlocked_ships]
-        if self.unlocked_ships > 8:
+        if self.unlocked_ships >= 8:
             self.unlocked_ships = 'all'
 
         self.world = World()
         self.world.add(Wind())
         speaker.reset()
         background_renderer.generate()
-        self.space_ship = self.ships[0]
+        self.space_ship_model = space_ship_model
         self.view = (0.0, 0.0)
         self.frame = 0
         self.leaving = False
@@ -1242,20 +1242,20 @@ class Base:
 
         if not self.leaving:
             if window.key_pressed('left'):
-                self.space_ship = self.ships[(self.ships.index(self.space_ship) - 1) % len(self.ships)]
+                self.space_ship_model = self.ships[(self.ships.index(self.space_ship_model) - 1) % len(self.ships)]
                 self.world.add(Explosion((0.0, 0.0, 0.6), 20))
                 speaker.play_explosion()
 
             if window.key_pressed('right'):
-                self.space_ship = self.ships[(self.ships.index(self.space_ship) + 1) % len(self.ships)]
+                self.space_ship_model = self.ships[(self.ships.index(self.space_ship_model) + 1) % len(self.ships)]
                 speaker.play_explosion()
                 self.world.add(Explosion((0.0, 0.0, 0.6), 20))
 
             if window.key_pressed('space'):
-                g.scene = Play(self.space_ship)
+                g.scene = Play(self.space_ship_model)
 
             object_renderer.render('Base', glm.vec3(-0.2, -0.2, 0.0), glm.quat(1.0, 0.0, 0.0, 0.0), 1.0)
-            object_renderer.render(self.space_ship, glm.vec3(0.0, 0.0, 0.6 + math.sin(self.frame / 20.0) * 0.1), rz(math.pi * 0.85), 0.6)
+            object_renderer.render(self.space_ship_model, glm.vec3(0.0, 0.0, 0.6 + math.sin(self.frame / 20.0) * 0.1), rz(math.pi * 0.85), 0.6)
 
         if self.leaving:
             smoke_renderer.instances.clear()
@@ -1297,7 +1297,7 @@ class Play:
             if window.key_pressed('space'):
                 g.total_score += self.space_ship.canisters_collected
                 save_score(g.total_score)
-                g.scene = Base()
+                g.scene = Base(self.space_ship.space_ship_model)
 
         if self.leaving:
             text_renderer.line(window.size[0] / 2.0 - 180, window.size[1] / 2.0 + 120, 'Abort mission?')
@@ -1306,7 +1306,7 @@ class Play:
             if window.key_pressed('space'):
                 g.total_score += self.space_ship.canisters_collected
                 save_score(g.total_score)
-                g.scene = Base()
+                g.scene = Base(self.space_ship.space_ship_model)
 
         if window.key_pressed('escape'):
             self.leaving = not self.leaving
