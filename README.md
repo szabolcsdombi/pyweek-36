@@ -1,5 +1,7 @@
 # Galactic Harvesters: The Canister Crusade
 
+This is [my entry](https://pyweek.org/e/szabolcsdombi) for [PyWeek 36](https://pyweek.org/36/).
+
 Dive into an exhilarating Python-powered odyssey where your spaceship embarks on a quest to harvest enigmatic Dark Matter canisters from the vast cosmos! 🚀🌌
 
 ```
