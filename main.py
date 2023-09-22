@@ -1146,7 +1146,7 @@ class Intro:
         self.view = ry(-rotation_speed) * self.view
         background_renderer.set_alpha(min(max((self.frame - 150.0) / 120.0, 0.0), 1.0))
 
-        if window.key_pressed('space'):
+        if window.key_pressed('space') or window.key_pressed('escape'):
             g.scene = Base('SpaceShip0')
 
         lines = [
