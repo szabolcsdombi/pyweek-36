@@ -2,6 +2,10 @@
 
 Dive into an exhilarating Python-powered odyssey where your spaceship embarks on a quest to harvest enigmatic Dark Matter canisters from the vast cosmos! 🚀🌌
 
+```
+pip install pyglet==2.0.7 zengl==1.13.0 pyglm==2.7.0
+```
+
 ## Story
 
 In the year 3077, the Milky Way Galaxy is in the midst of an energy crisis.
@@ -28,14 +32,8 @@ Based on the player's decisions, alliances can be formed or enemies made. For ex
 
 ## Music
 
-Music | Artist | Link | License
---- | --- | --- | ---
-Voxel Revolution | Kevin MacLeod | [link](https://filmmusic.io/song/7017-voxel-revolution) | [CC BY 4.0](https://filmmusic.io/standard-license)
-Impact Prelude | Kevin MacLeod | [link](https://filmmusic.io/song/7565-impact-prelude) | [CC BY 4.0](https://filmmusic.io/standard-license)
-Late Night Radio | Kevin MacLeod | [link](https://filmmusic.io/song/7613-late-night-radio) | [CC BY 4.0](https://filmmusic.io/standard-license)
-Raving Energy (faster) | Kevin MacLeod | [link](https://filmmusic.io/song/5030-raving-energy-faster) | [CC BY 4.0](https://filmmusic.io/standard-license)
-Beauty Flow | Kevin MacLeod | [link](https://filmmusic.io/song/5025-beauty-flow) | [CC BY 4.0](https://filmmusic.io/standard-license)
-Half Mystery | Kevin MacLeod | [link](https://filmmusic.io/song/5026-half-mystery) | [CC BY 4.0](https://filmmusic.io/standard-license)
+- [Impact Prelude](https://filmmusic.io/song/7565-impact-prelude)
+- [Beauty Flow](https://filmmusic.io/song/5025-beauty-flow)
 
 ## Assets
 
@@ -43,8 +41,6 @@ Half Mystery | Kevin MacLeod | [link](https://filmmusic.io/song/5026-half-myster
 - [Planets](https://www.kenney.nl/assets/planets)
 - [Sci-Fi Sounds](https://www.kenney.nl/assets/sci-fi-sounds)
 - [Simple Space](https://www.kenney.nl/assets/simple-space)
-
-The assets are pickled directly from Blender using the Python console.
 
 ![assets-1](https://github.com/szabolcsdombi/pyweek-36/assets/11232402/1e956c8a-1f73-40bf-b875-f62d0b4bfd62)
 
@@ -72,29 +68,6 @@ The assets are pickled directly from Blender using the Python console.
 ![day-4b](https://github.com/szabolcsdombi/pyweek-36/assets/11232402/38ae5db0-fc54-4d8a-876e-e080cf03e33f)
 ![day-4c](https://github.com/szabolcsdombi/pyweek-36/assets/11232402/55d675ac-be0e-4bc8-8149-31400771d6ae)
 
-## TODO, TBD, Game Elements
+## Day 5
 
-- [x] ship upgrades
-- [ ] better weapons (number of beams fired per second, the amount of ammo)
-- [ ] stronger shields (number of hits required for ship explosion, health regeneration)
-- [ ] advanced tech like cloaking devices (the distance the enemy uses to filter for the player)
-
-- [x] rival collectors
-- [ ] space pirates, rogue governmental factions (maybe different colors of ships)
-
-- [ ] engage in dogfights
-- [ ] alliances can be formed or enemies made
-- [ ] sharing resources with a faction prevents them from shooting at the player
-- [ ] or participating entirely in the canister collection, (they have enough they don't bother)
-
-- [x] the home planet floats in the background
-- [x] stars in the background
-- [ ] minimap
-
-- [ ] achievment for sharing enough dark matter with rivals to be alone in the canister collection phase
-- [ ] achievment for a complete game without a single beam fired
-- [ ] achievment for shooting down every rival (without missing participants)
-
-- [ ] intro
-- [ ] story told in-game
-- [ ] game logic explained
+https://github.com/szabolcsdombi/pyweek-36/assets/11232402/107a5568-6636-49ed-8dd7-61a0c70e3769
