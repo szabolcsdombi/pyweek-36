@@ -1,9 +1,11 @@
 # Galactic Harvesters: The Canister Crusade
 
+This is [my entry](https://pyweek.org/e/szabolcsdombi) for [PyWeek 36](https://pyweek.org/36/).
+
 Dive into an exhilarating Python-powered odyssey where your spaceship embarks on a quest to harvest enigmatic Dark Matter canisters from the vast cosmos! 🚀🌌
 
 ```
-pip install pyglet==2.0.7 zengl==1.13.0 pyglm==2.7.0
+pip install pyglet==2.0.7 pyglm==2.7.0 zengl==1.13.0
 ```
 
 download and place [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle) next to the `main.py`
