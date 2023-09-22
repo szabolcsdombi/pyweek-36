@@ -6,6 +6,15 @@ Dive into an exhilarating Python-powered odyssey where your spaceship embarks on
 pip install pyglet==2.0.7 zengl==1.13.0 pyglm==2.7.0
 ```
 
+download or build the assets.
+
+```
+python main.py
+```
+
+- [download](https://github.com/szabolcsdombi/pyweek-36/releases)
+- [watch](https://youtu.be/04alBvihDqk)
+
 ## Story
 
 In the year 3077, the Milky Way Galaxy is in the midst of an energy crisis.
