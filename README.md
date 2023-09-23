@@ -8,10 +8,10 @@ Dive into an exhilarating Python-powered odyssey where your spaceship embarks on
 pip install pyglet==2.0.7 pyglm==2.7.0 zengl==1.13.0
 ```
 
-download and place [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle) next to the `main.py`
+download and place [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle) next to the `run_game.py`
 
 ```
-python main.py
+python run_game.py
 ```
 
 - [download](https://github.com/szabolcsdombi/pyweek-36/releases)
