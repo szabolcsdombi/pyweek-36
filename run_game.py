@@ -1,3 +1,4 @@
+import argparse
 import io
 import math
 import os
@@ -8,6 +9,11 @@ import struct
 import glm
 import pyglet
 import zengl
+
+arg_parser = argparse.ArgumentParser('run_game')
+arg_parser.add_argument('--no-audio', action='store_true')
+arg_parser.add_argument('--no-fullscreen', action='store_true')
+args = arg_parser.parse_args()
 
 pyglet.options['shadow_window'] = False
 pyglet.options['debug_gl'] = False
@@ -46,6 +52,9 @@ class PygletWindow(pyglet.window.Window):
             samples=0,
         )
         super().__init__(fullscreen=True, config=config, vsync=True)
+        if args.no_fullscreen:
+            self.set_fullscreen(False, width=self.width * 9 // 10, height=self.height * 9 // 10)
+            self.set_location(self.width // 20, self.height // 20)
         self.set_exclusive_mouse(True)
 
     def on_resize(self, width, height):
@@ -112,14 +121,18 @@ class Window:
         return self._wnd.update()
 
 
+def load_audio(name):
+    return pyglet.media.load(name, io.BytesIO(assets['Audio'][name]), streaming=False)
+
+
 class Speaker:
     def __init__(self):
-        self.intro = pyglet.media.load('Intro', io.BytesIO(assets['Audio']['Intro']), streaming=False)
-        self.music = pyglet.media.load('Music', io.BytesIO(assets['Audio']['Music']), streaming=False)
-        self.hover = pyglet.media.load('Engine', io.BytesIO(assets['Audio']['Engine']), streaming=False)
-        self.beam = pyglet.media.load('Beam', io.BytesIO(assets['Audio']['Beam']), streaming=False)
-        self.explosion = pyglet.media.load('Explosion', io.BytesIO(assets['Audio']['Explosion']), streaming=False)
-        self.canister = pyglet.media.load('Canister', io.BytesIO(assets['Audio']['Canister']), streaming=False)
+        self.intro = load_audio('Intro')
+        self.music = load_audio('Music')
+        self.hover = load_audio('Engine')
+        self.beam = load_audio('Beam')
+        self.explosion = load_audio('Explosion')
+        self.canister = load_audio('Canister')
         self.players = []
 
     def reset(self):
@@ -150,6 +163,18 @@ class Speaker:
 
     def play_canister(self):
         self.players.append(self.canister.play())
+
+
+class NoSpeaker:
+    def __init__(self):
+        self.reset = lambda: None
+        self.update = lambda: None
+        self.play_intro = lambda: None
+        self.play_music = lambda: None
+        self.play_hover = lambda: None
+        self.play_beam = lambda: None
+        self.play_explosion = lambda: None
+        self.play_canister = lambda: None
 
 
 def rotate(forward, upward, yaw, pitch, roll):
@@ -224,7 +249,11 @@ with open(assets_filename, 'rb') as f:
     assets = pickle.load(f)
 
 window = Window()
-speaker = Speaker()
+
+if args.no_audio:
+    speaker = NoSpeaker()
+else:
+    speaker = Speaker()
 
 ctx = zengl.context(window.loader)
 
