@@ -43,21 +43,18 @@ It is not possible to play without the asset file.
 
 ## Story
 
-In the year 3077, the Milky Way Galaxy is in the midst of an energy crisis.
+In the year 3077,
+the Milky Way Galaxy is in the midst of an energy crisis.
+
 The primary source of energy, a rare crystalline element called "Dark Matter" is nearing depletion.
-Dark Matter is primarily stored in canisters that have been scattered throughout space over centuries due to space wars, trading routes, and exploration mishaps.
+Dark Matter is primarily stored in canisters that have been scattered throughout space over centuries
+due to space wars, trading routes, and exploration mishaps.
 
-Captain Neil Starbreaker, the fearless pilot of the spacecraft "Nebula Harvester".
-Neil used to be a space pirate but has since reformed after witnessing the dire effects of the energy crisis on his home planet, Noverra.
+Captain Neil Starbreaker is the fearless pilot of the spacecraft "Nebula Harvester".
+Neil used to be a space pirate but has since reformed after witnessing
+the dire effects of the energy crisis on his home planet, Noverra.
 
-Captain Neil and his crew must navigate through various sectors of the galaxy to collect Dark Matter canisters while fending off enemies and competitors who are also in search of the same resource.
-
-Rival collectors, space pirates, and even some rogue governmental factions will try to seize canisters from Neil.
-The player have to engage in dogfights, use the environment to their advantage, and deploy various weapons and tech.
-
-Collected Dark Matter can be used to power up the Nebula Harvester, but it can also be traded in the space station for ship upgrades, better weapons, stronger shields, and advanced tech like cloaking devices.
-
-Based on the player's decisions, alliances can be formed or enemies made. For example, Neil might decide to share a stash of Dark Matter with a struggling colony, earning their trust and assistance later in the game. Alternatively, he could keep it all, ensuring more immediate resources for upgrades but potentially making new adversaries.
+Join Captain Starbreaker on the "Nebula Harvester" and help save the galaxy.
 
 ## Modules
 
