@@ -6,7 +6,7 @@ This is [my entry](https://pyweek.org/e/szabolcsdombi) for [PyWeek 36](https://p
 pip install -r requirements.txt
 ```
 
-Download the [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle) and place next to the `run_game.py`
+Download the [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle) and place it next to the `run_game.py`
 
 ```
 python run_game.py
