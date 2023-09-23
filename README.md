@@ -46,7 +46,7 @@ It is not possible to play without the asset file.
 In the year 3077,
 the Milky Way Galaxy is in the midst of an energy crisis.
 
-The primary source of energy, a rare crystalline element called "Dark Matter" is nearing depletion.
+The primary source of energy, a rare crystalline element called **"Dark Matter"** is nearing depletion.
 Dark Matter is primarily stored in canisters that have been scattered throughout space over centuries
 due to space wars, trading routes, and exploration mishaps.
 
