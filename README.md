@@ -6,7 +6,7 @@ This is [my entry](https://pyweek.org/e/szabolcsdombi) for [PyWeek 36](https://p
 pip install -r requirements.txt
 ```
 
-Download the [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle) and place it next to the `run_game.py`
+Download the [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-23/assets.pickle) and place it next to the `run_game.py`
 
 ```
 python run_game.py
@@ -16,6 +16,15 @@ python run_game.py
 - [watch](https://youtu.be/04alBvihDqk)
 
 ## Troubleshooting
+
+Ubuntu users need a [very sad audio fix](https://github.com/szabolcsdombi/pyweek-36/commit/5470a616faa9f2b2cd9f3a9b115efac1225fd303) for https://github.com/szabolcsdombi/pyweek-36/issues/1 and https://github.com/szabolcsdombi/pyweek-36/issues/2
+
+For the fix please install [OpenAL](https://www.openal.org/) and [modernal](https://pypi.org/project/modernal/)
+
+```
+sudo apt-get install libopenal-dev
+pip install modernal==0.9.0
+```
 
 It is possible to play without audio:
 
