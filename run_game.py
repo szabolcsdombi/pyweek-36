@@ -965,7 +965,8 @@ class SpaceShip:
         for obj in world.nearby(self.position, 4.0):
             if type(obj) is Canister:
                 world.add(CollectedCanister(self, obj))
-                speaker.play_canister()
+                if glm.distance(self.position, world.listener) < 40.0:
+                    speaker.play_canister()
                 self.canisters_collected += 1
                 obj.alive = False
 
@@ -991,7 +992,8 @@ class SpaceShip:
                 world.add(Beam(self, self.position + self.rotation * glm.vec3(-0.5, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(self.fire_spread, 0.0, 0.0)))
             else:
                 world.add(Beam(self, self.position + self.rotation * glm.vec3(0.0, -0.4, -0.1), self.forward * 1.5 + random_rotation() * glm.vec3(self.fire_spread, 0.0, 0.0)))
-            speaker.play_beam()
+            if glm.distance(self.position, world.listener) < 40.0:
+                speaker.play_beam()
 
     def render(self):
         object_renderer.render(self.space_ship_model, self.position, self.rotation, 1.0)
@@ -1071,6 +1073,7 @@ class SpaceShipControl:
 class World:
     def __init__(self):
         self.game_objects = []
+        self.listener = glm.vec3(0.0, 0.0, 0.0)
 
     def nearby(self, position, radius):
         return [obj for obj in self.game_objects if glm.distance(obj.position, position) <= radius]
@@ -1078,7 +1081,8 @@ class World:
     def add(self, obj):
         self.game_objects.append(obj)
 
-    def update(self):
+    def update(self, listener):
+        self.listener = listener
         for obj in self.game_objects:
             obj.update(self)
         self.game_objects = [obj for obj in self.game_objects if obj.alive]
@@ -1282,7 +1286,7 @@ class Base:
         if window.key_pressed('escape'):
             self.leaving = not self.leaving
 
-        self.world.update()
+        self.world.update(glm.vec3(0.0, 0.0, 0.0))
 
         eye = glm.vec3(0.63, 3.2, 1.36)
         eye = rz(self.view[0]) * rx(self.view[1]) * eye
@@ -1393,7 +1397,7 @@ class Play:
 
         self.controller.update()
 
-        self.world.update()
+        self.world.update(self.space_ship.position)
         eye, target, upward = self.space_ship.camera()
         set_camera(eye, target, upward)
         background_renderer.render()
@@ -1509,7 +1513,7 @@ class Tutorial:
         if self.hint >= 1 and self.hint != 5:
             self.controller.update()
 
-        self.world.update()
+        self.world.update(self.space_ship.position)
 
         canisters = sum(1 for x in self.world.game_objects if type(x) is Canister)
         rivals = sum(1 for x in self.world.game_objects if type(x) is SpaceShip and x is not self.space_ship)
