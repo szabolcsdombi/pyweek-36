@@ -214,7 +214,13 @@ def save_score(score):
         pass
 
 
-with open(os.path.join(os.path.dirname(__file__), 'assets.pickle'), 'rb') as f:
+assets_filename = os.path.join(os.path.dirname(__file__), 'assets.pickle')
+
+if not os.path.isfile(assets_filename):
+    link = 'https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle'
+    exit(f'Missing assets!\nPlease download the "assets.pickle" and place next to the "main.py"\n\n{link}')
+
+with open(assets_filename, 'rb') as f:
     assets = pickle.load(f)
 
 window = Window()
