@@ -92,8 +92,6 @@ class PygletWindow(pyglet.window.Window):
         self.prev_keys = self.keys
         self.keys = self.keys.copy()
         self.mouse = (0, 0)
-        self.flip()
-        self.dispatch_events()
         return self.alive
 
 
@@ -142,7 +140,7 @@ class Speaker:
 
     def update(self):
         for player in self.players:
-            if player.time > player.source.duration:
+            if player.source is None or player.time > player.source.duration:
                 player.pause()
         self.players = [player for player in self.players if player.playing]
 
@@ -1565,5 +1563,9 @@ def render():
 
 
 if __name__ == '__main__':
-    while window.alive():
+    @window._wnd.event
+    def on_draw():
         render()
+        if not window.alive():
+            exit()
+    pyglet.app.run()
