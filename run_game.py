@@ -1007,6 +1007,7 @@ class SpaceShip:
 
 class WanderingShip:
     def __init__(self):
+        self.cooldown = random.randrange(180, 240)
         self.space_ship = SpaceShip(f'SpaceShip{random.randrange(0, 8)}')
         position = random_rotation() * glm.vec3(100.0, 0.0, 0.0)
         forward = glm.normalize(random_rotation() * glm.vec3(20.0, 0.0, 0.0) - position)
@@ -1019,6 +1020,10 @@ class WanderingShip:
         self.alive = True
 
     def update(self, world):
+        self.cooldown -= 1
+        if self.cooldown < 0:
+            self.space_ship.shooting = not self.space_ship.shooting
+            self.cooldown = random.randrange(60, 60 + (60 if self.space_ship.shooting else 180))
         user_input = glm.vec3(random.random(), random.random(), random.random()) * 0.08 - 0.04
         self.space_ship.user_input = glm.clamp(self.space_ship.user_input + user_input, glm.vec3(-1.0), glm.vec3(1.0))
         pdist = glm.length(self.space_ship.position)
