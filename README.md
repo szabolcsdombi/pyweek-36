@@ -1,14 +1,14 @@
 # Galactic Harvesters: The Canister Crusade
 
-This is [my entry](https://pyweek.org/e/szabolcsdombi) for [PyWeek 36](https://pyweek.org/36/).
-
 Dive into an exhilarating Python-powered odyssey where your spaceship embarks on a quest to harvest enigmatic Dark Matter canisters from the vast cosmos! 🚀🌌
 
+This is [my entry](https://pyweek.org/e/szabolcsdombi) for [PyWeek 36](https://pyweek.org/36/).
+
 ```
-pip install pyglet==2.0.7 pyglm==2.7.0 zengl==1.13.0
+pip install -r requirements.txt
 ```
 
-download and place [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle) next to the `run_game.py`
+Download the [assets.pickle](https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-22/assets.pickle) and place next to the `run_game.py`
 
 ```
 python run_game.py
@@ -16,6 +16,28 @@ python run_game.py
 
 - [download](https://github.com/szabolcsdombi/pyweek-36/releases)
 - [watch](https://youtu.be/04alBvihDqk)
+
+## Troubleshooting
+
+It is possible to play without audio:
+
+```
+python run_game.py --no-audio
+```
+
+It is possible to play without fullscreen:
+
+```
+python run_game.py --no-fullscreen
+```
+
+It is possible to play without a mouse:
+
+Move: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>
+Turn: <kbd>Q</kbd> <kbd>E</kbd>
+Shoot: <kbd>CTRL</kbd>
+
+It is not possible to play without the asset file.
 
 ## Story
 
