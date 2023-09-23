@@ -5,6 +5,7 @@ import os
 import pickle
 import random
 import struct
+import sys
 
 import glm
 import pyglet
@@ -161,6 +162,62 @@ class Speaker:
 
     def play_canister(self):
         self.players.append(self.canister.play())
+
+
+if not args.no_audio and not sys.platform.startswith('win'):
+    try:
+        import modernal
+        al = modernal.context()
+
+    except:
+        exit('Broken pyglet audio detected!\n\nsudo apt-get install libopenal-dev\npip install modernal==0.9.0\n\nor\n\npython3 run_game.py --no-audio')
+
+    class Audio:
+        def __init__(self, sources):
+            self.sources = sources
+            self.idx = 0
+
+        def play(self):
+            self.sources[self.idx].change(time=0.0)
+            self.sources[self.idx].play()
+            self.idx = (self.idx + 1) % len(self.sources)
+
+        def reset(self):
+            for s in self.sources:
+                s.stop()
+
+
+    def load_audio(name, sources):
+        import wave
+        with wave.open(io.BytesIO(assets['Audio'][name])) as w:
+            buffer = al.buffer(w.readframes(w.getnframes()))
+        return Audio([al.source(buffer) for i in range(sources)])
+
+
+    class Speaker:
+        def __init__(self):
+            self.intro = load_audio('Intro', 1)
+            self.music = load_audio('Music', 1)
+            self.hover = load_audio('Engine', 10)
+            self.beam = load_audio('Beam', 50)
+            self.explosion = load_audio('Explosion', 50)
+            self.canister = load_audio('Canister', 50)
+
+            self.update = lambda: None
+            self.play_intro = self.intro.play
+            self.play_music = self.music.play
+            self.play_hover = self.hover.play
+            self.play_beam = self.beam.play
+            self.play_explosion = self.explosion.play
+            self.play_canister = self.canister.play
+
+        def reset(self):
+            self.intro.reset()
+            self.music.reset()
+            self.hover.reset()
+            self.beam.reset()
+            self.explosion.reset()
+            self.canister.reset()
 
 
 class NoSpeaker:
