@@ -985,7 +985,15 @@ class WanderingShip:
 
     def update(self, world):
         user_input = glm.vec3(random.random(), random.random(), random.random()) * 0.08 - 0.04
-        self.space_ship.user_input = glm.clamp(self.space_ship.user_input + user_input, glm.vec3(0.0), glm.vec3(1.0))
+        self.space_ship.user_input = glm.clamp(self.space_ship.user_input + user_input, glm.vec3(-1.0), glm.vec3(1.0))
+        pdist = glm.length(self.space_ship.position)
+        if pdist > 100.0:
+            correction = -self.space_ship.position / pdist
+            factor = glm.clamp((pdist - 100.0) * 0.003, 0.0, 0.05)
+            self.space_ship.forward = glm.normalize(self.space_ship.forward + correction * factor)
+            sideways = glm.normalize(glm.cross(self.space_ship.forward, self.space_ship.upward))
+            self.space_ship.upward = glm.normalize(glm.cross(sideways, self.space_ship.forward))
+            self.space_ship.user_input *= 0.95
         self.space_ship.update(world)
         self.alive = self.space_ship.alive
         self.position = self.space_ship.position
