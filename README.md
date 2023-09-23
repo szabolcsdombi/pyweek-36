@@ -35,6 +35,10 @@ Move: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>
 Turn: <kbd>Q</kbd> <kbd>E</kbd>
 Shoot: <kbd>CTRL</kbd>
 
+It is possible to reset the game by deleting the score.txt
+
+It is possible to unlock all ships by modifying the score.txt
+
 It is not possible to play without the asset file.
 
 ## Story
