@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Assets
+        run: wget -q https://github.com/szabolcsdombi/pyweek-36/releases/download/2023-09-23/assets.pickle
       - name: Build
         run: docker build -f web/Dockerfile . -t web && docker run --rm -v `pwd`/pages:/pages web cp -r /web /pages/
       - name: Setup Pages
