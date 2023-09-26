@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html {
+      color-scheme: dark;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: black;
+    }
+    #canvas {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: block;
+      width: min(100vw, 177vh);
+      height: min(56vw, 100vh);
+      margin: auto;
+      outline: none;
+    }
+    #initButton {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 300px;
+      height: 60px;
+      font-size: 40px;
+      background-color: rgb(44, 111, 255);
+      color: white;
+      outline: none;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #initButton:hover {
+      background-color: rgb(69, 128, 255);
+    }
+    #loadingStatus {
+      pointer-events: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      padding: 40px;
+      font-size: 40px;
+      color: white;
+    }
+    #loadingSpinner {
+      pointer-events: none;
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+      background-color: black;
+    }
+    .lds-spinner {
+      color: official;
+      display: inline-block;
+      position: relative;
+      width: 80px;
+      height: 80px;
+    }
+    .lds-spinner div {
+      transform-origin: 40px 40px;
+      animation: lds-spinner 1.2s linear infinite;
+    }
+    .lds-spinner div:after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 3px;
+      left: 37px;
+      width: 6px;
+      height: 18px;
+      border-radius: 20%;
+      background: #fff;
+    }
+    .lds-spinner div:nth-child(1) {
+      transform: rotate(0deg);
+      animation-delay: -1.1s;
+    }
+    .lds-spinner div:nth-child(2) {
+      transform: rotate(30deg);
+      animation-delay: -1s;
+    }
+    .lds-spinner div:nth-child(3) {
+      transform: rotate(60deg);
+      animation-delay: -0.9s;
+    }
+    .lds-spinner div:nth-child(4) {
+      transform: rotate(90deg);
+      animation-delay: -0.8s;
+    }
+    .lds-spinner div:nth-child(5) {
+      transform: rotate(120deg);
+      animation-delay: -0.7s;
+    }
+    .lds-spinner div:nth-child(6) {
+      transform: rotate(150deg);
+      animation-delay: -0.6s;
+    }
+    .lds-spinner div:nth-child(7) {
+      transform: rotate(180deg);
+      animation-delay: -0.5s;
+    }
+    .lds-spinner div:nth-child(8) {
+      transform: rotate(210deg);
+      animation-delay: -0.4s;
+    }
+    .lds-spinner div:nth-child(9) {
+      transform: rotate(240deg);
+      animation-delay: -0.3s;
+    }
+    .lds-spinner div:nth-child(10) {
+      transform: rotate(270deg);
+      animation-delay: -0.2s;
+    }
+    .lds-spinner div:nth-child(11) {
+      transform: rotate(300deg);
+      animation-delay: -0.1s;
+    }
+    .lds-spinner div:nth-child(12) {
+      transform: rotate(330deg);
+      animation-delay: 0s;
+    }
+    @keyframes lds-spinner {
+      0% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<canvas id="canvas" tabindex="1" width="1920" height="1080"></canvas>
+<button id="initButton">Load Game</button>
+<div id="loadingSpinner"><div class="lds-spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+<div id="loadingStatus"></div>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+<script src="webgl.js"></script>
+<script>
+  const canvas = document.getElementById('canvas');
+
+  const init = async () => {
+    await canvas.requestPointerLock({
+      // unadjustedMovement: true,
+    });
+
+    canvas.addEventListener('click', async () => {
+      if (document.pointerLockElement !== canvas) {
+        await canvas.requestPointerLock({
+          // unadjustedMovement: true,
+        });
+      }
+    });
+
+    const downloadedBytesEstimate = 63977900;
+    let downloadedBytes = 0;
+
+    const reportStatus = (text) => {
+      document.getElementById('loadingStatus').innerHTML = text;
+    };
+
+    reportStatus('Initializing');
+
+    const fetchOriginal = fetch;
+    const fetchWithProgress = async (url) => {
+      const response = await fetchOriginal(url);
+
+      const ts = new TransformStream({
+        transform(chunk, ctrl) {
+          downloadedBytes += chunk.byteLength;
+          const progress = Math.floor(Math.min(downloadedBytes / downloadedBytesEstimate, 1.0) * 100.0);
+          reportStatus(`Loading ${progress}%`);
+          ctrl.enqueue(chunk);
+        }
+      });
+
+      return new Response(response.body.pipeThrough(ts), response);
+    };
+
+    window.fetch = fetchWithProgress;
+
+    const mainFetch = fetch('main.py');
+    const assetsFetch = fetch('assets.pickle');
+    const pyodide = await loadPyodide();
+
+    await pyodide.loadPackage([
+      'zengl-1.13.0-cp311-cp311-emscripten_3_1_32_wasm32.whl',
+      'webgl-0.1.0-cp311-cp311-emscripten_3_1_32_wasm32.whl',
+      'webapp-0.1.0-cp311-cp311-emscripten_3_1_32_wasm32.whl',
+      'PyGLM-2.7.0-cp311-cp311-emscripten_3_1_32_wasm32.whl',
+    ]);
+
+    const gl = canvas.getContext('webgl2', {
+      alpha: false, depth: false, stencil: false, antialias: false,
+      premultipliedAlpha: false, preserveDrawingBuffer: false,
+      powerPreference: 'high-performance',
+    });
+
+    setupWebGL(pyodide, gl);
+
+    const wasm = pyodide._module;
+
+    const mouse = { x: 0, y: 0 };
+
+    window.addEventListener('mousemove', (e) => {
+      mouse.x += e.movementX;
+      mouse.y -= e.movementY;
+    }, false);
+
+    const keymap = new Map();
+    keymap['KeyA'] = 1;
+    keymap['KeyD'] = 2;
+    keymap['KeyW'] = 3;
+    keymap['KeyS'] = 4;
+    keymap['ArrowLeft'] = 1;
+    keymap['ArrowRight'] = 2;
+    keymap['ArrowUp'] = 3;
+    keymap['ArrowDown'] = 4;
+    keymap['KeyQ'] = 5;
+    keymap['KeyE'] = 6;
+    keymap['Space'] = 7;
+    keymap['Enter'] = 8;
+    keymap['Backspace'] = 8;
+    keymap['ShiftLeft'] = 9;
+
+    const keys = {
+      previous: new Set(),
+      current: new Set(),
+    };
+
+    window.addEventListener('keydown', (evt) => {
+      keys.current.add(keymap[evt.code]);
+    });
+
+    window.addEventListener('keyup', (evt) => {
+      keys.current.delete(keymap[evt.code]);
+    });
+
+    window.addEventListener('mousedown', (evt) => {
+      if (evt.button === 0) {
+        keys.current.add(9);
+      }
+    });
+
+    window.addEventListener('mouseup', (evt) => {
+      if (evt.button === 0) {
+        keys.current.delete(9);
+      }
+    });
+
+    const requestAssets = await assetsFetch;
+    pyodide.FS.writeFile('/home/pyodide/assets.pickle', new Uint8Array(await requestAssets.arrayBuffer()));
+
+    const audio = {
+      ctx: new (window.AudioContext || window.webkitAudioContext)(),
+      buffers: new Map(),
+      sources: [],
+      index: 0,
+    };
+
+    wasm.mergeLibSymbols({
+      webapp_key_pressed(key) {
+        return (keys.current.has(key) && !keys.previous.has(key)) ? 1 : 0;
+      },
+      webapp_key_down(key) {
+        return keys.current.has(key) ? 1 : 0;
+      },
+      webapp_mouse(ptr) {
+        wasm.HEAP32[ptr / 4] = mouse.x;
+        wasm.HEAP32[ptr / 4 + 1] = mouse.y;
+      },
+      webapp_load_audio(ptr, size) {
+        const buffer = audio.ctx.createBuffer(1, size, 44100);
+        const channel = buffer.getChannelData(0);
+        for (let i = 0; i < buffer.length; i++) {
+          channel[i] = wasm.HEAP16[ptr / 2 + i] / 65536;
+        }
+        const index = audio.index++;
+        audio.buffers[index] = buffer;
+        return index;
+      },
+      webapp_play_audio(buffer) {
+        const source = audio.ctx.createBufferSource();
+        source.buffer = audio.buffers[buffer];
+        audio.sources.push(source);
+        source.onended = () => {
+          const index = audio.sources.indexOf(source);
+          if (index > -1) {
+            audio.sources.splice(index, 1);
+          }
+        }
+        source.connect(audio.ctx.destination);
+        source.start();
+      },
+      webapp_reset_audio() {
+        for (let i = 0; i < audio.sources.length; i++) {
+          audio.sources[i].onended = undefined;
+          audio.sources[i].stop();
+        }
+      },
+      webapp_save_score(score) {
+        window.localStorage.setItem('score', `${score}`);
+      },
+      webapp_load_score() {
+        return parseInt(window.localStorage.getItem('score') || '0');
+      },
+      webapp_exit() {
+        window.location.reload();
+      },
+    });
+
+    const updateInputs = () => {
+      mouse.x = 0;
+      mouse.y = 0;
+      keys.previous = new Set(keys.current);
+    };
+
+    const request = await mainFetch;
+    pyodide.runPython(await request.text());
+    const updateCallback = pyodide.globals.get('render');
+
+    const render = () => {
+      updateCallback();
+      updateInputs();
+      requestAnimationFrame(render);
+    };
+
+    document.getElementById('loadingSpinner').remove();
+    document.getElementById('loadingStatus').remove();
+    requestAnimationFrame(render);
+
+    if (downloadedBytes !== downloadedBytesEstimate) {
+      console.log('downloadedBytes', downloadedBytes);
+    }
+  };
+
+  document.getElementById('initButton').addEventListener('click', async () => {
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    document.getElementById('initButton').remove();
+    await document.documentElement.requestFullscreen();
+    init();
+  });
+</script>
+</html>
