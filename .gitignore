@@ -12,4 +12,4 @@ assets/*.blend1
 assets/*.pickle
 
 score.txt
-assets.pickle
+/assets.pickle
